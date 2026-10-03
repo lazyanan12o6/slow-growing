@@ -123,7 +123,7 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 .press{transition:transform .2s ease,background-color .5s ease}
 .chk.top{align-self:flex-start}
 .ck-empty{width:26px;height:26px;box-sizing:border-box;border-radius:50%;border:1.5px solid var(--ring);color:var(--ring);display:flex;align-items:center;justify-content:center}
-.ck-done{position:relative;width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--tick)}
+.ck-done{position:relative;width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--tick);transform:translateZ(0)}
 .ck-done .dot,.ck-done .ring{position:absolute;inset:0;border-radius:50%}
 .ck-done .ring{opacity:0}
 .ck-done svg{position:relative}
@@ -446,7 +446,7 @@ function CheckButton({ done, color, pop, label, onClick, top }) {
       ? html`<span className=${'ck-done' + (pop ? ' pop' : '')}>
           <span className="ring" style=${{ background: color }}></span>
           <span className="dot" style=${{ background: color }}></span>
-          <span aria-hidden="true" style=${{ display: 'flex', position: 'relative' }} dangerouslySetInnerHTML=${{ __html: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path class="tick" d="M6 12.5l4 4L18 8.5"/></svg>' }}></span>
+          <span aria-hidden="true" style=${{ display: 'flex', position: 'relative' }} dangerouslySetInnerHTML=${{ __html: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.45" stroke-linecap="round" stroke-linejoin="round"><path class="tick" d="M6 12.5l4 4L18 8.5"/></svg>' }}></span>
         </span>`
       : html`<span className="ck-empty"><${Icon} name="save" size=${13} width=${2.4} /></span>`}
   </button>`;
