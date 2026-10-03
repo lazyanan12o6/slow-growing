@@ -339,10 +339,18 @@ function monthInfo(h, y, m, logs, today) {
   let doneCount = 0, target = 0;
   if (firstDay <= dim) {
     if (f.type === 'day') {
-      // one check inside each N-day window counts
-      for (let st = firstDay; st <= dim; st += f.n) {
+      // rhythm: each check keeps you "on rhythm" for that day and the next N-1 days;
+      // a check near the end of last month can carry into this one
+      let coverUntil = 0;
+      for (let k = f.n - 1; k >= 1; k--) {
+        const prev = new Date(y, m, firstDay - k);
+        if (start && prev < start) continue;
+        if (statusOf(h, prev, logs, today) === true) coverUntil = Math.max(coverUntil, firstDay - k + f.n - 1);
+      }
+      for (let d = firstDay; d <= dim; d++) {
+        if (stats[d] === true) coverUntil = Math.max(coverUntil, d + f.n - 1);
         target++;
-        for (let k = st; k < st + f.n && k <= dim; k++) { if (stats[k] === true) { doneCount++; break; } }
+        if (d <= coverUntil) doneCount++;
       }
     } else if (f.type === 'week') {
       // Monday–Sunday weeks; a partial week at the month's edge asks for a fair share
@@ -363,7 +371,7 @@ function monthInfo(h, y, m, logs, today) {
     }
   }
   const p = target > 0 ? Math.min(doneCount / target, 1) : 0;
-  return { y, m, dim, lead, stats, doneCount, doneDays, target, p };
+  return { y, m, dim, lead, stats, doneCount, doneDays, target, p, kind: f.type };
 }
 function cellLook(color, v) {
   if (v === true) return { background: color, borderColor: color };
@@ -684,7 +692,7 @@ function Detail({ h, store, today, dOff, shiftD, jumpD, calAnim, goHome, openFor
         <div className="chip" style=${{ background: h.color + '55' }}>${freqText(freqOf(h))}</div>
       </div>
       <div className="bar-track"><div className="bar" style=${{ width: (info.p * 100).toFixed(2) + '%', background: h.color }}></div></div>
-      <div className="sum-count">達成 ${info.doneCount} / ${info.target} 次 · 共打卡 ${info.doneDays} 天</div>
+      <div className="sum-count">${info.kind === 'day' ? '保持節奏 ' + info.doneCount + ' / ' + info.target + ' 天' : '達成 ' + info.doneCount + ' / ' + info.target + ' 次'} · 共打卡 ${info.doneDays} 天</div>
     </section>
     <section className="panel cal" onPointerDown=${swDown} onPointerUp=${swUp}>
       <div className="cal-head">
