@@ -182,6 +182,12 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 .stepper{display:flex;align-items:center;gap:6px}
 .step{width:40px;height:40px;border-radius:50%;border:none;background:var(--track);display:flex;align-items:center;justify-content:center;padding:0;color:var(--ink)}
 .step-n{width:44px;text-align:center;font-family:var(--f-num);font-size:22px;font-variant-numeric:tabular-nums}
+.titlebtn{border:none;background:transparent;color:inherit;font-family:inherit;padding:0 8px;min-height:32px;cursor:pointer}
+.freqcard{padding:22px 20px 22px 24px;overflow:hidden}
+.freq-in{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.freq-zh{font-size:16px;font-weight:600;letter-spacing:.1em;white-space:nowrap}
+.freq-num{font-family:var(--f-num);font-size:18px;font-weight:500;color:var(--brand);padding:0 .35em;letter-spacing:0}
+.freq-en{font-size:11px;font-weight:500;letter-spacing:.1em;margin-top:6px}
 .units{display:flex;gap:6px;background:var(--track);border-radius:999px;padding:4px}
 .unit{width:52px;height:36px;border:none;border-radius:999px;font-size:14px;font-weight:500;letter-spacing:.08em;background:transparent;color:var(--ink);transition:background-color .3s ease,color .3s ease}
 .unit[aria-pressed="true"]{background:var(--brand);color:var(--on-brand)}
@@ -278,8 +284,15 @@ const ymKey = (y, m) => y + '-' + pad(m + 1);
 const parseYmd = s => { const p = String(s).split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
 const dayStart = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-const everyOf = h => h.n * (h.unit === 'week' ? 7 : 1);
-const freqText = (n, unit) => unit === 'week' ? (n === 1 ? 'every week' : 'every ' + n + ' week') : (n === 1 ? 'every day' : 'every ' + n + ' day');
+const FREQ_MAX = { day: 30, week: 7, month: 31 };
+const FREQ_TYPES = [['day', 'Day'], ['week', 'Week'], ['month', 'Month']];
+// older habits stored { n, unit }; read them as the new { type, n }
+const freqOf = h => {
+  if (h.type === 'day' || h.type === 'week' || h.type === 'month') return { type: h.type, n: h.n };
+  if (h.unit === 'week') return h.n === 1 ? { type: 'week', n: 1 } : { type: 'month', n: Math.max(1, Math.round(4 / h.n)) };
+  return { type: 'day', n: h.n || 1 };
+};
+const freqText = f => f.type === 'week' ? f.n + 'x a week' : f.type === 'month' ? f.n + 'x a month' : 'every ' + f.n + (f.n === 1 ? ' day' : ' days');
 const pctStr = p => Math.round(p * 100) + '%';
 const fillW = p => 'calc(' + p.toFixed(4) + ' * (100% + 30px))';
 
@@ -290,44 +303,77 @@ function lsSet(k, v) { try { localStorage.setItem(LS + k, JSON.stringify(v)); } 
 
 /* ---------- status math ---------- */
 function statusOf(h, date, logs, today) {
-  const created = h.created ? parseYmd(h.created) : null;
-  if (created && date < created) return 'pre';
   if (date > today) return null;
   const v = (logs[ymKey(date.getFullYear(), date.getMonth())] || {})[h.id + '|' + pad(date.getDate())];
   if (v === true) return true;
   return sameDay(date, today) ? null : false;
 }
+function startOf(h, logs) {
+  let st = h.created ? parseYmd(h.created) : null;
+  const pre = h.id + '|';
+  Object.keys(logs).forEach(k => {
+    const mm = logs[k] || {};
+    Object.keys(mm).forEach(key => {
+      if (mm[key] !== true || key.indexOf(pre) !== 0) return;
+      const p = k.split('-');
+      const d = new Date(+p[0], +p[1] - 1, +key.slice(pre.length));
+      if (!st || d < st) st = d;
+    });
+  });
+  return st;
+}
 function monthInfo(h, y, m, logs, today) {
   const dim = new Date(y, m + 1, 0).getDate();
   const lead = (new Date(y, m, 1).getDay() + 6) % 7;
-  const created = h.created ? parseYmd(h.created) : null;
+  const start = startOf(h, logs);
   let firstDay = 1;
-  if (created) {
-    if (created > new Date(y, m, dim)) firstDay = dim + 1;
-    else if (created.getFullYear() === y && created.getMonth() === m) firstDay = created.getDate();
+  if (start) {
+    if (start > new Date(y, m, dim)) firstDay = dim + 1;
+    else if (start.getFullYear() === y && start.getMonth() === m) firstDay = start.getDate();
   }
   const stats = [];
   for (let d = 1; d <= dim; d++) stats[d] = statusOf(h, new Date(y, m, d), logs, today);
-  const every = everyOf(h);
-  let doneCount = 0, doneDays = 0;
+  let doneDays = 0;
   for (let d = 1; d <= dim; d++) if (stats[d] === true) doneDays++;
-  for (let s = firstDay; s <= dim; s += every) {
-    for (let k = s; k < s + every && k <= dim; k++) { if (stats[k] === true) { doneCount++; break; } }
+  const f = freqOf(h);
+  let doneCount = 0, target = 0;
+  if (firstDay <= dim) {
+    if (f.type === 'day') {
+      // one check inside each N-day window counts
+      for (let st = firstDay; st <= dim; st += f.n) {
+        target++;
+        for (let k = st; k < st + f.n && k <= dim; k++) { if (stats[k] === true) { doneCount++; break; } }
+      }
+    } else if (f.type === 'week') {
+      // Monday–Sunday weeks; a partial week at the month's edge asks for a fair share
+      let st = firstDay;
+      while (st <= dim) {
+        const dow = (new Date(y, m, st).getDay() + 6) % 7;
+        const en = Math.min(dim, st + 6 - dow);
+        const t = Math.min(f.n, Math.ceil(f.n * (en - st + 1) / 7));
+        let c = 0; for (let k = st; k <= en; k++) if (stats[k] === true) c++;
+        target += t; doneCount += Math.min(c, t);
+        st = en + 1;
+      }
+    } else {
+      const span = dim - firstDay + 1;
+      target = Math.min(f.n, Math.ceil(f.n * span / dim));
+      let c = 0; for (let k = firstDay; k <= dim; k++) if (stats[k] === true) c++;
+      doneCount = Math.min(c, target);
+    }
   }
-  const target = Math.ceil(Math.max(0, dim - firstDay + 1) / every);
   const p = target > 0 ? Math.min(doneCount / target, 1) : 0;
   return { y, m, dim, lead, stats, doneCount, doneDays, target, p };
 }
 function cellLook(color, v) {
   if (v === true) return { background: color, borderColor: color };
   if (v === false) return { background: color + '40', borderColor: 'transparent' };
-  if (v === 'pre') return { background: 'transparent', borderColor: color + '55' };
   return { background: 'transparent', borderColor: color };
 }
 
 /* ---------- store: everything lives on this phone ---------- */
 const DATA_KEY = 'slow-growing:data';
-const VERSION = { label: '01 ver.', date: '2026.10.03' };
+const VERSION = { label: '02 ver.', date: '2026.10.03' };
 function seedData() {
   return { v: 1, theme: null, lastBackup: null, logs: {}, habits: [] };
 }
@@ -357,7 +403,7 @@ function useStore() {
 function parseBackup(text) {
   const b = JSON.parse(text);
   if (!b || b.app !== 'slow-growing' || !Array.isArray(b.habits)) throw new Error('not a backup');
-  const ok = b.habits.every(h => h && typeof h.id === 'string' && typeof h.name === 'string' && typeof h.color === 'string' && (h.unit === 'day' || h.unit === 'week') && h.n >= 1);
+  const ok = b.habits.every(h => h && typeof h.id === 'string' && typeof h.name === 'string' && typeof h.color === 'string' && (h.unit === 'day' || h.unit === 'week' || h.type === 'day' || h.type === 'week' || h.type === 'month') && h.n >= 1);
   if (!ok) throw new Error('bad habits');
   if (b.logs && typeof b.logs !== 'object') throw new Error('bad logs');
   return b;
@@ -439,7 +485,7 @@ function SwipeCard({ open, setOpen, enabled, name, onEdit, onDelete, className, 
 
 /* ---------- home ---------- */
 function Home(p) {
-  const { store, today, view, setView, listAnim, monthOff, shiftMonth, openId, setOpenId, lastTap, toggleToday, openDetail, openForm, askDelete, toggleTheme, openSettings } = p;
+  const { store, today, view, setView, listAnim, monthOff, shiftMonth, openId, setOpenId, lastTap, toggleToday, openDetail, openForm, askDelete, toggleTheme, openSettings, jumpMonth } = p;
   const habits = store.habits;
   const sw = useRef(null);
   const listRef = useRef(null);
@@ -539,14 +585,14 @@ function Home(p) {
       ${wasDrag => html`
         <div className="fill" style=${{ width: fillW(r.cur.p), background: h.color }}></div>
         <div className="row">
-          ${nameBtn(r, wasDrag, html`<span className="hname">${h.name}</span><span className="freq">${freqText(h.n, h.unit)}</span>`)}
+          ${nameBtn(r, wasDrag, html`<span className="hname">${h.name}</span><span className="freq">${freqText(freqOf(h))}</span>`)}
           <div className="pct">${pctStr(r.cur.p)}</div>
           ${check(r)}
         </div>`}
     </${SwipeCard}>`;
     if (view === 'week') return html`<${SwipeCard} ...${common} enabled=${true} className="card week">
       ${wasDrag => html`
-        ${nameBtn(r, wasDrag, html`<span className="hname">${h.name}</span><span className="freq">${freqText(h.n, h.unit)}</span>`)}
+        ${nameBtn(r, wasDrag, html`<span className="hname">${h.name}</span><span className="freq">${freqText(freqOf(h))}</span>`)}
         <div className="wk" aria-label="本週">
           ${weekDays.map((d, i) => html`<div key=${'l' + i} className="wk-l" style=${{ fontWeight: sameDay(d, today) ? 700 : 400 }}>${DOW[i]}</div>`)}
           ${weekDays.map((d, i) => html`<div key=${'c' + i} className="cell" style=${cellLook(h.color, statusOf(h, d, store.logs, today))}></div>`)}
@@ -557,7 +603,7 @@ function Home(p) {
     const cells = Array.from({ length: 35 }, () => ({ blank: true }));
     for (let dd = 1; dd <= r.shown.dim; dd++) { let pos = r.shown.lead + dd - 1; if (pos >= 35) pos -= 35; cells[pos] = { v: r.shown.stats[dd] }; }
     return html`<div key=${h.id} className="card month">
-      ${nameBtn(r, null, html`<span style=${{ display: 'flex', flexDirection: 'column', gap: '3px' }}><span className="hname">${h.name}</span><span className="freq">${freqText(h.n, h.unit)}</span></span><span className="pct">${pctStr(r.shown.p)}</span>`)}
+      ${nameBtn(r, null, html`<span style=${{ display: 'flex', flexDirection: 'column', gap: '3px' }}><span className="hname">${h.name}</span><span className="freq">${freqText(freqOf(h))}</span></span><span className="pct">${pctStr(r.shown.p)}</span>`)}
       <div className="mg">${cells.map((c, i) => html`<div key=${i} className="cell" style=${c.blank ? {} : cellLook(h.color, c.v)}></div>`)}</div>
       ${check(r, true)}
     </div>`;
@@ -580,7 +626,7 @@ function Home(p) {
       <button className="arrow" aria-label="上個月" onClick=${() => shiftMonth(-1)}><${Icon} name="left" size=${18} width=${1.8} /></button>
       <div className="capsule">
         <div key=${'cap' + monthOff} className=${'capsule-in ' + listAnim}>
-          <div className="cap-month">${my}年 ${mm + 1}月</div>
+          <button className="cap-month titlebtn" aria-label="回到本月" onClick=${jumpMonth}>${my}年 ${mm + 1}月</button>
           <div className="cap-row"><span className="cap-label">平均完成度</span><span className="cap-pct">${pctStr(avg)}</span></div>
         </div>
       </div>
@@ -600,7 +646,7 @@ function Home(p) {
 }
 
 /* ---------- detail ---------- */
-function Detail({ h, store, today, dOff, shiftD, calAnim, goHome, openForm }) {
+function Detail({ h, store, today, dOff, shiftD, jumpD, calAnim, goHome, openForm }) {
   const base = new Date(today.getFullYear(), today.getMonth() + dOff, 1);
   const info = monthInfo(h, base.getFullYear(), base.getMonth(), store.logs, today);
   const sw = useRef(null);
@@ -616,7 +662,7 @@ function Detail({ h, store, today, dOff, shiftD, calAnim, goHome, openForm }) {
     const date = new Date(info.y, info.m, dd);
     const v = info.stats[dd];
     const isT = sameDay(date, today);
-    const dis = v === 'pre' || (v === null && !isT);
+    const dis = v === null && !isT;
     const look = cellLook(h.color, v);
     if (isT && v !== true) look.borderColor = 'var(--ink)';
     days.push(html`<button key=${dd} className=${'day' + (v === true ? ' done' : '')} style=${look} disabled=${dis}
@@ -635,7 +681,7 @@ function Detail({ h, store, today, dOff, shiftD, calAnim, goHome, openForm }) {
           <div className="sum-label">${dOff === 0 ? '本月完成度' : (info.m + 1) + '月完成度'}</div>
           <div className="sum-pct">${pctStr(info.p)}</div>
         </div>
-        <div className="chip" style=${{ background: h.color + '55' }}>${freqText(h.n, h.unit)}</div>
+        <div className="chip" style=${{ background: h.color + '55' }}>${freqText(freqOf(h))}</div>
       </div>
       <div className="bar-track"><div className="bar" style=${{ width: (info.p * 100).toFixed(2) + '%', background: h.color }}></div></div>
       <div className="sum-count">達成 ${info.doneCount} / ${info.target} 次 · 共打卡 ${info.doneDays} 天</div>
@@ -643,7 +689,7 @@ function Detail({ h, store, today, dOff, shiftD, calAnim, goHome, openForm }) {
     <section className="panel cal" onPointerDown=${swDown} onPointerUp=${swUp}>
       <div className="cal-head">
         <button className="arrow" aria-label="上個月" onClick=${() => shiftD(-1)}><${Icon} name="left" size=${18} width=${1.8} /></button>
-        <div key=${'t' + dOff} className=${'cal-title ' + calAnim}>${info.y}年 ${info.m + 1}月</div>
+        <button key=${'t' + dOff} className=${'cal-title titlebtn ' + calAnim} aria-label="回到本月" onClick=${jumpD}>${info.y}年 ${info.m + 1}月</button>
         <button className="arrow" aria-label="下個月" disabled=${dOff >= 0} onClick=${() => shiftD(1)}><${Icon} name="right" size=${18} width=${1.8} /></button>
       </div>
       <div key=${'g' + dOff} className=${calAnim}>
@@ -658,7 +704,15 @@ function Detail({ h, store, today, dOff, shiftD, calAnim, goHome, openForm }) {
 function Form({ form, setForm, onClose, onSave, onDelete }) {
   const name = form.name || '';
   const trimmed = name.trim();
-  const maxN = form.unit === 'week' ? 8 : 30;
+  const maxN = FREQ_MAX[form.type] || 30;
+  const [fAnim, setFAnim] = useState('');
+  const idx = t => FREQ_TYPES.findIndex(x => x[0] === t);
+  const pickType = t => {
+    if (t === form.type) return;
+    setFAnim(idx(t) > idx(form.type) ? 'in-r' : 'in-l');
+    setForm(Object.assign({}, form, { type: t, n: Math.min(form.n, FREQ_MAX[t]) }));
+  };
+  const zh = form.type === 'week' ? ['每週', '次'] : form.type === 'month' ? ['每月', '次'] : ['每', '天'];
   const inPalette = PALETTE.some(p => p.color === form.color);
   const patch = o => setForm(Object.assign({}, form, o));
   return html`<div className="screen tight">
@@ -672,17 +726,19 @@ function Form({ form, setForm, onClose, onSave, onDelete }) {
         onChange=${e => patch({ name: String(e.target.value).slice(0, 20) })}
         onKeyDown=${e => { if (e.key === 'Enter' && trimmed) onSave(); }} />
     </div>
-    <div className="panel group">
-      <div className="g-head"><div className="g-title">頻率</div><div className="g-sub">${freqText(form.n, form.unit)}</div></div>
-      <div className="g-row">
+    <nav className="tabs" aria-label="頻率">
+      ${FREQ_TYPES.map(t => html`<button key=${t[0]} className="tab" aria-pressed=${form.type === t[0] ? 'true' : 'false'} onClick=${() => pickType(t[0])}>${t[1]}</button>`)}
+    </nav>
+    <div className="panel freqcard">
+      <div key=${form.type} className=${'freq-in ' + fAnim}>
+        <div>
+          <div className="freq-zh">${zh[0]}<span className="freq-num">${form.n}</span>${zh[1]}</div>
+          <div className="freq-en">${freqText(form)}</div>
+        </div>
         <div className="stepper">
           <button className="step press" aria-label="減少" onClick=${() => patch({ n: Math.max(1, form.n - 1) })}><${Icon} name="minus" size=${16} width=${2} /></button>
           <div className="step-n" aria-live="polite">${form.n}</div>
           <button className="step press" aria-label="增加" onClick=${() => patch({ n: Math.min(maxN, form.n + 1) })}><${Icon} name="add" size=${16} width=${2} /></button>
-        </div>
-        <div className="units">
-          ${[['day', '天'], ['week', '週']].map(u => html`<button key=${u[0]} className="unit" aria-pressed=${form.unit === u[0] ? 'true' : 'false'}
-            onClick=${() => patch({ unit: u[0], n: Math.min(form.n, u[0] === 'week' ? 8 : 30) })}>${u[1]}</button>`)}
         </div>
       </div>
     </div>
@@ -699,7 +755,7 @@ function Form({ form, setForm, onClose, onSave, onDelete }) {
     </div>
     <div className="card main" style=${{ marginTop: '6px' }}>
       <div className="fill" style=${{ width: fillW(0.62), background: form.color, animation: 'none', transition: 'background-color .3s ease' }}></div>
-      <div className="row"><div className="namebtn" style=${{ flex: 1 }}><span className="hname">${trimmed || '習慣名稱'}</span><span className="freq">${freqText(form.n, form.unit)}</span></div></div>
+      <div className="row"><div className="namebtn" style=${{ flex: 1 }}><span className="hname">${trimmed || '習慣名稱'}</span><span className="freq">${freqText(form)}</span></div></div>
     </div>
     <div className="preview-cap">預覽</div>
     ${form.mode === 'edit' && html`<button className="textbtn" onClick=${onDelete}>刪除這個習慣</button>`}
@@ -816,6 +872,8 @@ function App() {
     const n = monthOff + dir; if (n > 0 || n < -24) return;
     setListAnim(dir > 0 ? 'in-r' : 'in-l'); setMonthOff(n);
   };
+  const jumpMonth = () => { if (monthOff === 0) return; setListAnim(monthOff < 0 ? 'in-r' : 'in-l'); setMonthOff(0); };
+  const jumpD = () => { if (dOff === 0) return; setCalAnim(dOff < 0 ? 'in-r' : 'in-l'); setDOff(0); };
   const shiftD = dir => {
     const n = dOff + dir; if (n > 0 || n < -24) return;
     setCalAnim(dir > 0 ? 'in-r' : 'in-l'); setDOff(n);
@@ -833,8 +891,8 @@ function App() {
   const openDetail = id => { setDOff(0); setCalAnim(''); go('detail', id, 'in-r'); };
   const openForm = (mode, h, returnTo) => {
     setForm(mode === 'edit'
-      ? { mode: 'edit', id: h.id, name: h.name, n: h.n, unit: h.unit, color: h.color, returnTo: returnTo || 'home' }
-      : { mode: 'add', id: null, name: '', n: 1, unit: 'day', color: PALETTE[0].color, returnTo: 'home' });
+      ? Object.assign({ mode: 'edit', id: h.id, name: h.name, color: h.color, returnTo: returnTo || 'home' }, freqOf(h))
+      : { mode: 'add', id: null, name: '', type: 'day', n: 1, color: PALETTE[0].color, returnTo: 'home' });
     go('form', page.id, 'pg-up');
   };
   const closeForm = () => {
@@ -844,9 +902,14 @@ function App() {
   const saveForm = () => {
     const name = (form.name || '').trim(); if (!name) return;
     if (form.mode === 'edit') {
-      store.saveHabits(habits.map(h => h.id === form.id ? Object.assign({}, h, { name, n: form.n, unit: form.unit, color: form.color }) : h));
+      store.saveHabits(habits.map(h => {
+        if (h.id !== form.id) return h;
+        const nh = Object.assign({}, h, { name, type: form.type, n: form.n, color: form.color });
+        delete nh.unit;
+        return nh;
+      }));
     } else {
-      store.saveHabits(habits.concat([{ id: 'h' + Date.now().toString(36), name, n: form.n, unit: form.unit, color: form.color, created: ymd(today) }]));
+      store.saveHabits(habits.concat([{ id: 'h' + Date.now().toString(36), name, type: form.type, n: form.n, color: form.color, created: ymd(today) }]));
       showToast('新增了「' + name + '」');
     }
     closeForm();
@@ -874,13 +937,13 @@ function App() {
   } else if (page.name === 'form' && form) {
     body = html`<${Form} form=${form} setForm=${setForm} onClose=${closeForm} onSave=${saveForm} onDelete=${() => setConfirmId(form.id)} />`;
   } else if (detailH) {
-    body = html`<${Detail} h=${detailH} store=${store} today=${today} dOff=${dOff} shiftD=${shiftD} calAnim=${calAnim}
+    body = html`<${Detail} h=${detailH} store=${store} today=${today} dOff=${dOff} shiftD=${shiftD} jumpD=${jumpD} calAnim=${calAnim}
       goHome=${() => go('home', null, 'in-l')} openForm=${openForm} />`;
   } else {
     body = html`<${Home} store=${store} today=${today} view=${view} setView=${setView} listAnim=${listAnim}
       monthOff=${monthOff} shiftMonth=${shiftMonth} openId=${openId} setOpenId=${setOpenId} lastTap=${lastTap}
       toggleToday=${toggleToday} openDetail=${openDetail} openForm=${openForm} askDelete=${id => { setOpenId(null); setConfirmId(id); }}
-      toggleTheme=${toggleTheme} openSettings=${() => go('settings', null, 'in-r')} />`;
+      toggleTheme=${toggleTheme} openSettings=${() => go('settings', null, 'in-r')} jumpMonth=${jumpMonth} />`;
   }
   const confirmH = confirmId ? find(confirmId) : null;
 
