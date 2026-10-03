@@ -329,12 +329,7 @@ function cellLook(color, v) {
 const DATA_KEY = 'slow-growing:data';
 const VERSION = { label: '01 ver.', date: '2026.10.03' };
 function seedData() {
-  const t = ymd(dayStart(new Date()));
-  return { v: 1, theme: null, lastBackup: null, logs: {}, habits: [
-    { id: 'sleep', name: '早點睡覺', n: 1, unit: 'day', color: '#96b8ea', created: t },
-    { id: 'bike', name: '騎車20分', n: 1, unit: 'day', color: '#fce76d', created: t },
-    { id: 'tea', name: '奶茶追蹤', n: 2, unit: 'day', color: '#ffcade', created: t }
-  ] };
+  return { v: 1, theme: null, lastBackup: null, logs: {}, habits: [] };
 }
 function useStore() {
   const [data, setData] = useState(() => {
@@ -593,7 +588,7 @@ function Home(p) {
     </div>`}
 
     ${habits === null && html`<div className="empty">正在讀取你的習慣…</div>`}
-    ${habits && habits.length === 0 && html`<div className="empty">還沒有習慣喔<br />按右上角的 ＋ 新增一個吧</div>`}
+    ${habits && habits.length === 0 && html`<div className="empty">還沒有習慣喔<br />按右下角的 ＋ 新增一個吧</div>`}
 
     <div key=${view + (view === 'month' ? monthOff : '')} ref=${listRef} className=${'list ' + listAnim} onPointerDown=${swDown} onPointerUp=${swUp}>
       ${rows.map((r, i) => html`<div key=${r.h.id} data-id=${r.h.id} className="row-wrap" style=${rowStyle(i, r.h.id)}
