@@ -1,0 +1,928 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Slow Growing</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Slow Growing">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta id="theme-color" name="theme-color" content="#eeeeeb">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<style>
+@font-face{font-family:'Montserrat';font-weight:400;font-style:normal;font-display:swap;src:url(fonts/montserrat-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Montserrat';font-weight:500;font-style:normal;font-display:swap;src:url(fonts/montserrat-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Montserrat';font-weight:600;font-style:normal;font-display:swap;src:url(fonts/montserrat-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Montserrat';font-weight:700;font-style:normal;font-display:swap;src:url(fonts/montserrat-latin-700-normal.woff2) format('woff2')}
+@font-face{font-family:'Poppins';font-weight:400;font-style:normal;font-display:swap;src:url(fonts/poppins-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Poppins';font-weight:500;font-style:normal;font-display:swap;src:url(fonts/poppins-latin-500-normal.woff2) format('woff2')}
+/* Layout: one phone-width column of rounded cards on a warm grey ground; pages slide in and out */
+:root{
+  --bg:#eeeeeb; --surface:#ffffff; --ink:#323232; --muted:#75746e; --ring:#adaca5; --track:#eeeeeb;
+  --brand:#5f94c4; --on-brand:#ffffff; --danger:#c9505b; --disabled:#bdbcb6; --scrim:rgba(50,50,50,.35);
+  --fill-op:1; --tick:#323232;
+  --f-ui:'Montserrat','PingFang TC','Noto Sans TC',system-ui,sans-serif;
+  --f-num:'Poppins','Montserrat',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#323232; --surface:#424242; --ink:#eeeeeb; --muted:#b3b2ab; --ring:#e3e2dc; --track:#363636;
+    --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#323232; --surface:#424242; --ink:#eeeeeb; --muted:#b3b2ab; --ring:#e3e2dc; --track:#363636;
+  --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; color-scheme:dark;
+}
+/* the logo switch inside the app wins over the system setting */
+:root[data-app="light"]{
+  --bg:#eeeeeb; --surface:#ffffff; --ink:#323232; --muted:#75746e; --ring:#adaca5; --track:#eeeeeb;
+  --danger:#c9505b; --disabled:#bdbcb6; --scrim:rgba(50,50,50,.35); --fill-op:1; color-scheme:light;
+}
+:root[data-app="dark"]{
+  --bg:#323232; --surface:#424242; --ink:#eeeeeb; --muted:#b3b2ab; --ring:#e3e2dc; --track:#363636;
+  --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; color-scheme:dark;
+}
+
+html,body{min-height:100%;margin:0}
+html{-webkit-text-size-adjust:100%}
+body{-webkit-touch-callout:none;padding-top:env(safe-area-inset-top,0px);-webkit-user-select:none;user-select:none;touch-action:manipulation}
+input{-webkit-user-select:text;user-select:text}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);transition:background-color .5s ease,color .5s ease;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:disabled{cursor:default}
+button:focus-visible,input:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+#app{max-width:430px;margin:0 auto;padding-inline:24px;box-sizing:border-box;overflow-x:hidden;min-height:100%}
+.screen{padding-block:28px 56px;display:flex;flex-direction:column;gap:26px}
+.screen.tight{gap:18px}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:48px;height:48px;border:none;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.logo svg{width:36px;height:31px;overflow:visible}
+h1{margin:0;font-size:24px;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.round{width:50px;height:50px;flex-shrink:0;border-radius:50%;border:none;background:var(--surface);color:var(--ink);display:flex;align-items:center;justify-content:center;padding:0;transition:background-color .5s ease}
+.round.brandbtn{background:var(--brand);color:var(--on-brand)}
+.round.sm{width:48px;height:48px}
+.round.danger{color:var(--danger)}
+
+/* tabs */
+.tabs{display:flex;justify-content:center;gap:8px}
+.tab{width:88px;height:40px;border:none;border-radius:999px;font-size:11px;font-weight:500;letter-spacing:.04em;background:var(--surface);color:var(--ink);transition:background-color .35s ease,color .35s ease}
+.tab[aria-pressed="true"]{background:var(--brand);color:var(--on-brand)}
+
+/* month capsule: 70% of the screen, arrows centred in the side gaps */
+.monthnav{margin-inline:-24px;display:grid;grid-template-columns:1fr 70% 1fr;align-items:center}
+.arrow{width:44px;height:44px;border:none;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;color:var(--ring);justify-self:center}
+.arrow:disabled{opacity:.35}
+.capsule{background:var(--surface);border-radius:999px;padding:20px 12px;overflow:hidden;transition:background-color .5s ease}
+.capsule-in{display:flex;flex-direction:column;align-items:center;gap:6px;white-space:nowrap}
+.cap-month{font-size:14px;font-weight:600;letter-spacing:.1em}
+.cap-row{display:flex;align-items:baseline;gap:10px}
+.cap-label{font-size:13px;font-weight:600;letter-spacing:.1em}
+.cap-pct{font-family:var(--f-num);font-size:26px;font-weight:500;letter-spacing:.02em;color:var(--brand)}
+
+/* cards */
+.list{display:flex;flex-direction:column;gap:16px}
+.row-wrap{-webkit-touch-callout:none;will-change:transform}
+.swipe{position:relative}
+.actions{position:absolute;right:2px;top:0;bottom:0;display:flex;align-items:center;gap:10px}
+.card{position:relative;background:var(--surface);border-radius:18px;touch-action:pan-y;transition:background-color .5s ease}
+.card.main{height:70px;overflow:hidden}
+.card.week{min-height:70px;box-sizing:border-box;padding:12px 10px 12px 20px;display:flex;align-items:center;gap:8px}
+.card.month{box-sizing:border-box;padding:18px 10px 18px 20px;display:flex;gap:8px}
+.row{position:relative;height:70px;box-sizing:border-box;padding:0 10px 0 20px;display:flex;align-items:center;gap:8px}
+.namebtn{border:none;background:transparent;padding:0;text-align:left;display:flex;flex-direction:column;justify-content:center;gap:3px;min-width:0}
+.card.main .namebtn{flex:1;height:70px}
+.card.week .namebtn{width:82px;flex-shrink:0;align-self:stretch}
+.card.month .namebtn{flex:1;justify-content:space-between;gap:12px}
+.hname{font-size:14px;font-weight:600;letter-spacing:.06em;line-height:1.35}
+.freq{font-size:9px;font-weight:500;letter-spacing:.1em}
+.pct{font-family:var(--f-num);font-size:24px;font-weight:400;letter-spacing:.02em;line-height:1;font-variant-numeric:tabular-nums}
+.fill{position:absolute;left:0;top:0;bottom:0;opacity:var(--fill-op);border-top-right-radius:22px 50%;border-bottom-right-radius:22px 50%;
+  transition:width 1.5s cubic-bezier(.28,1.4,.5,1),opacity .5s ease;
+  animation:grow 2s cubic-bezier(.25,1.25,.45,1) backwards,wobble 5.5s ease-in-out 2s infinite}
+@keyframes grow{from{width:0}}
+@keyframes wobble{0%,100%{border-top-right-radius:22px 50%;border-bottom-right-radius:22px 50%}35%{border-top-right-radius:27px 44%;border-bottom-right-radius:18px 56%}70%{border-top-right-radius:18px 55%;border-bottom-right-radius:26px 45%}}
+
+.wk{flex:1;display:grid;grid-template-columns:repeat(7,16px);column-gap:9px;row-gap:7px;justify-content:center}
+.wk-l{text-align:center;font-size:10px}
+.mg{display:grid;grid-template-columns:repeat(7,16px);gap:9px;flex-shrink:0;padding-top:6px}
+.cell{width:16px;height:16px;box-sizing:border-box;border-radius:5px;border:1.2px solid transparent;transition:background-color .45s ease,border-color .45s ease}
+
+/* check button */
+.chk{width:44px;height:44px;flex-shrink:0;border:none;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;transition:transform .2s ease}
+.chk:active,.press:active{transform:scale(.88)}
+.press{transition:transform .2s ease,background-color .5s ease}
+.chk.top{align-self:flex-start}
+.ck-empty{width:26px;height:26px;box-sizing:border-box;border-radius:50%;border:1.5px solid var(--ring);color:var(--ring);display:flex;align-items:center;justify-content:center}
+.ck-done{position:relative;width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--tick)}
+.ck-done .dot,.ck-done .ring{position:absolute;inset:0;border-radius:50%}
+.ck-done .ring{opacity:0}
+.ck-done svg{position:relative}
+.pop .dot{animation:pop .6s cubic-bezier(.3,1.5,.5,1)}
+.pop .ring{animation:ripple .9s ease-out both}
+.pop .tick{stroke-dasharray:18;animation:draw .45s ease-out .18s both}
+@keyframes pop{0%{transform:scale(.55)}55%{transform:scale(1.18)}100%{transform:scale(1)}}
+@keyframes ripple{from{transform:scale(1);opacity:.6}to{transform:scale(2);opacity:0}}
+@keyframes draw{from{stroke-dashoffset:18}to{stroke-dashoffset:0}}
+
+/* logo eyes */
+.eyes-look{animation:look 12s ease-in-out infinite}
+.eyes-blink{transform-box:fill-box;transform-origin:center;animation:blink 6s ease-in-out infinite}
+@keyframes look{0%,16%{transform:translate(0,0)}23%,37%{transform:translate(-5px,0)}44%,55%{transform:translate(0,0)}62%,73%{transform:translate(4px,-2px)}80%,100%{transform:translate(0,0)}}
+@keyframes blink{0%,40%,46%,100%{transform:scaleY(1)}43%{transform:scaleY(.12)}}
+
+/* page + slide motion */
+.in-r{animation:inR .55s cubic-bezier(.22,.9,.32,1)}
+.in-l{animation:inL .55s cubic-bezier(.22,.9,.32,1)}
+.pg-up{animation:pgUp .6s cubic-bezier(.22,.9,.3,1)}
+@keyframes inR{from{transform:translateX(44px);opacity:0}to{transform:none;opacity:1}}
+@keyframes inL{from{transform:translateX(-44px);opacity:0}to{transform:none;opacity:1}}
+@keyframes pgUp{from{transform:translateY(60px);opacity:0}to{transform:none;opacity:1}}
+.fade-in{animation:fadeIn .35s ease}
+.pop-in{animation:popIn .5s cubic-bezier(.3,1.35,.5,1)}
+@keyframes fadeIn{from{opacity:0}}
+@keyframes popIn{from{transform:scale(.9);opacity:0}}
+
+/* detail */
+.panel{background:var(--surface);border-radius:24px;transition:background-color .5s ease}
+.summary{padding:22px 22px 20px;display:flex;flex-direction:column;gap:14px}
+.sum-top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.sum-label{font-size:12px;font-weight:600;letter-spacing:.1em}
+.sum-pct{font-family:var(--f-num);font-size:40px;font-weight:400;letter-spacing:.02em;line-height:1;margin-top:6px}
+.chip{font-size:10px;font-weight:600;letter-spacing:.1em;padding:7px 12px;border-radius:999px}
+.bar-track{height:10px;border-radius:999px;background:var(--track);overflow:hidden}
+.bar{height:100%;border-radius:999px;transition:width 1.5s cubic-bezier(.3,1,.4,1);animation:grow 1.8s cubic-bezier(.3,1,.4,1) backwards}
+.sum-count{font-size:12px;font-weight:500;letter-spacing:.08em;color:var(--muted)}
+.cal{padding:12px 14px 20px;overflow:hidden;touch-action:pan-y}
+.cal-head{display:flex;align-items:center;justify-content:space-between}
+.cal-title{font-size:14px;font-weight:600;letter-spacing:.1em}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));row-gap:8px;justify-items:center}
+.cal-l{font-size:11px;font-weight:500;color:var(--muted);padding-block:6px 2px}
+.day{width:38px;height:38px;box-sizing:border-box;border-radius:50%;border:1.5px solid transparent;padding:0;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:500;color:var(--ink);background:transparent;font-variant-numeric:tabular-nums;transition:background-color .45s ease,border-color .45s ease,transform .2s ease}
+.day:active:not(:disabled){transform:scale(.88)}
+.day:disabled{color:var(--disabled)}
+.day.done{color:#323232}
+
+/* form */
+.field{padding:6px 20px}
+.field input{width:100%;height:52px;box-sizing:border-box;border:none;outline:none;background:transparent;padding:0;font-family:var(--f-ui);font-size:16px;font-weight:500;letter-spacing:.06em;color:var(--ink)}
+.field input::placeholder{color:var(--muted);opacity:.8;font-weight:500}
+.group{padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.g-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.g-title{font-size:15px;font-weight:600;letter-spacing:.08em}
+.g-sub{font-size:11px;font-weight:500;letter-spacing:.1em;color:var(--muted)}
+.g-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.stepper{display:flex;align-items:center;gap:6px}
+.step{width:40px;height:40px;border-radius:50%;border:none;background:var(--track);display:flex;align-items:center;justify-content:center;padding:0;color:var(--ink)}
+.step-n{width:44px;text-align:center;font-family:var(--f-num);font-size:22px;font-variant-numeric:tabular-nums}
+.units{display:flex;gap:6px;background:var(--track);border-radius:999px;padding:4px}
+.unit{width:52px;height:36px;border:none;border-radius:999px;font-size:14px;font-weight:500;letter-spacing:.08em;background:transparent;color:var(--ink);transition:background-color .3s ease,color .3s ease}
+.unit[aria-pressed="true"]{background:var(--brand);color:var(--on-brand)}
+.swatches{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));justify-items:center}
+.sw{width:40px;height:44px;border:none;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;position:relative}
+.sw span{width:28px;height:28px;border-radius:50%;transition:box-shadow .25s ease}
+.sw.on span{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink)}
+.sw input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;padding:0;cursor:pointer}
+.preview-cap{text-align:center;font-size:11px;font-weight:500;letter-spacing:.08em;color:var(--muted);margin-top:-14px}
+.textbtn{align-self:center;height:44px;padding:0 20px;border:none;background:transparent;color:var(--danger);font-size:14px;font-weight:600;letter-spacing:.1em}
+
+/* misc */
+.empty{padding:56px 12px;text-align:center;font-size:13px;letter-spacing:.1em;line-height:1.9;color:var(--muted)}
+.note{text-align:center;font-size:11px;letter-spacing:.06em;line-height:1.7;color:var(--muted)}
+.overlay{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:32px;z-index:10}
+.dialog{width:100%;max-width:340px;background:var(--surface);border-radius:24px;padding:28px 22px 20px;display:flex;flex-direction:column;gap:10px;text-align:center}
+.dlg-title{font-size:16px;font-weight:600;letter-spacing:.06em}
+.dlg-text{font-size:13px;line-height:1.7;letter-spacing:.04em;color:var(--muted)}
+.dlg-btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.pill{height:48px;border:none;border-radius:999px;font-size:15px;font-weight:600;letter-spacing:.1em;background:var(--track);color:var(--ink)}
+.pill.danger{background:var(--danger);color:#ffffff}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:999px;font-size:13px;letter-spacing:.06em;z-index:20;white-space:nowrap}
+
+/* menu, floating add button, settings */
+.iconbtn{width:48px;height:48px;border:none;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;color:var(--ring)}
+.screen.home{padding-bottom:calc(130px + env(safe-area-inset-bottom,0px))}
+.fab{position:fixed;width:67px;height:67px;border-radius:50%;border:none;padding:0;background:var(--surface);color:var(--ink);display:flex;align-items:center;justify-content:center;
+  right:max(24px,calc((100vw - 430px) / 2 + 24px));bottom:calc(28px + env(safe-area-inset-bottom,0px));box-shadow:0 6px 22px rgba(50,50,50,.08);z-index:5;transition:transform .2s ease,background-color .5s ease}
+.fab:active{transform:scale(.9)}
+.setlist{display:flex;flex-direction:column;gap:16px}
+.setrow{width:100%;min-height:70px;box-sizing:border-box;padding:16px 22px 16px 20px;border:none;border-radius:18px;background:var(--surface);color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;transition:transform .2s ease,background-color .5s ease}
+button.setrow:active{transform:scale(.98)}
+.set-title{font-size:14px;font-weight:600;letter-spacing:.06em}
+.set-sub{font-size:9px;font-weight:500;letter-spacing:.1em;margin-top:5px;font-variant-numeric:tabular-nums}
+.set-sub.warn{color:var(--brand)}
+.set-icon{color:var(--brand);display:flex}
+.thanks{margin:8px 0 0;text-align:center;font-size:12px;letter-spacing:.1em;display:flex;align-items:center;justify-content:center;gap:8px}
+.thanks svg{width:15px;height:13px}
+.pill.brand{background:var(--brand);color:var(--on-brand)}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+
+</head>
+<body>
+<div id="app"></div>
+
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script src="vendor/htm.umd.js"></script>
+<script>
+(function () {
+const { useState, useEffect, useRef } = React;
+const html = htm.bind(React.createElement);
+
+/* ---------- constants ---------- */
+const REVEAL = 118;
+const PALETTE = [
+  { color: '#96b8ea', label: '藍' }, { color: '#fce76d', label: '黃' },
+  { color: '#ffcade', label: '粉' }, { color: '#ffce80', label: '橘' },
+  { color: '#b8dba6', label: '綠' }, { color: '#cdc1ee', label: '紫' }
+];
+const DOW = ['一', '二', '三', '四', '五', '六', '日'];
+const VIEWS = ['main', 'week', 'month'];
+
+const ICONS = {
+  plus: '<path d="M12 3.5v17M3.5 12h17"/>',
+  left: '<path d="M15 5l-7 7 7 7"/>',
+  right: '<path d="M9 5l7 7-7 7"/>',
+  pencil: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13 7l4 4"/>',
+  trash: '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  save: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  minus: '<path d="M6 12h12"/>',
+  add: '<path d="M12 6v12M6 12h12"/>',
+  menu: '<path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/>',
+  cloudOk: '<path d="M7.2 18.5h9.9a4.1 4.1 0 0 0 .5-8.17 5.6 5.6 0 0 0-10.7 1.3 3.45 3.45 0 0 0 .3 6.87z"/><path d="M9.6 14.2l1.9 1.9 3.6-3.6"/>',
+  cloudUp: '<path d="M7.2 18.5h9.9a4.1 4.1 0 0 0 .5-8.17 5.6 5.6 0 0 0-10.7 1.3 3.45 3.45 0 0 0 .3 6.87z"/><path d="M12 16.4v-5M9.9 13.4l2.1-2.1 2.1 2.1"/>',
+  restore: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.6h3.6"/>'
+};
+function Icon({ name, size, width }) {
+  const s = size || 20;
+  return html`<span aria-hidden="true" style=${{ display: 'flex' }} dangerouslySetInnerHTML=${{ __html:
+    '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (width || 1.7) + '" stroke-linecap="round" stroke-linejoin="round">' + ICONS[name] + '</svg>' }}></span>`;
+}
+const LOGO = '<svg viewBox="0 0 62.746 53.366" aria-hidden="true"><path style="fill:var(--brand)" d="M34.037,53.365c-6.081-.072-12.311-3.075-17.261-6.491C8.953,41.476,1.818,33.924.251,24.024-1.134,15.279,3.323,6.826,11.036,2.939c6.831-3.443,14.92-1.006,19.523,5.069.471.622,1.386.571,1.784-.1C36.079,1.633,43.365-1.412,50.295.631c8.477,2.499,12.956,11.418,12.406,20.092-.49,7.728-4.246,14.883-9.063,20.671-5.009,6.018-11.394,12.068-19.602,11.971Z"/><g class="eyes-look"><g class="eyes-blink"><circle style="fill:var(--bg);transition:fill .5s ease" cx="29.051" cy="28.769" r="3.686"/><circle style="fill:var(--bg);transition:fill .5s ease" cx="43.852" cy="28.769" r="3.686"/></g></g></svg>';
+
+/* ---------- dates ---------- */
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const ymKey = (y, m) => y + '-' + pad(m + 1);
+const parseYmd = s => { const p = String(s).split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
+const dayStart = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+const everyOf = h => h.n * (h.unit === 'week' ? 7 : 1);
+const freqText = (n, unit) => unit === 'week' ? (n === 1 ? 'every week' : 'every ' + n + ' week') : (n === 1 ? 'every day' : 'every ' + n + ' day');
+const pctStr = p => Math.round(p * 100) + '%';
+const fillW = p => 'calc(' + p.toFixed(4) + ' * (100% + 30px))';
+
+/* ---------- local fallback ---------- */
+const LS = 'slow-growing:';
+function lsGet(k) { try { const v = localStorage.getItem(LS + k); return v == null ? null : JSON.parse(v); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(LS + k, JSON.stringify(v)); } catch (e) {} }
+
+/* ---------- status math ---------- */
+function statusOf(h, date, logs, today) {
+  const created = h.created ? parseYmd(h.created) : null;
+  if (created && date < created) return 'pre';
+  if (date > today) return null;
+  const v = (logs[ymKey(date.getFullYear(), date.getMonth())] || {})[h.id + '|' + pad(date.getDate())];
+  if (v === true) return true;
+  return sameDay(date, today) ? null : false;
+}
+function monthInfo(h, y, m, logs, today) {
+  const dim = new Date(y, m + 1, 0).getDate();
+  const lead = (new Date(y, m, 1).getDay() + 6) % 7;
+  const created = h.created ? parseYmd(h.created) : null;
+  let firstDay = 1;
+  if (created) {
+    if (created > new Date(y, m, dim)) firstDay = dim + 1;
+    else if (created.getFullYear() === y && created.getMonth() === m) firstDay = created.getDate();
+  }
+  const stats = [];
+  for (let d = 1; d <= dim; d++) stats[d] = statusOf(h, new Date(y, m, d), logs, today);
+  const every = everyOf(h);
+  let doneCount = 0, doneDays = 0;
+  for (let d = 1; d <= dim; d++) if (stats[d] === true) doneDays++;
+  for (let s = firstDay; s <= dim; s += every) {
+    for (let k = s; k < s + every && k <= dim; k++) { if (stats[k] === true) { doneCount++; break; } }
+  }
+  const target = Math.ceil(Math.max(0, dim - firstDay + 1) / every);
+  const p = target > 0 ? Math.min(doneCount / target, 1) : 0;
+  return { y, m, dim, lead, stats, doneCount, doneDays, target, p };
+}
+function cellLook(color, v) {
+  if (v === true) return { background: color, borderColor: color };
+  if (v === false) return { background: color + '40', borderColor: 'transparent' };
+  if (v === 'pre') return { background: 'transparent', borderColor: color + '55' };
+  return { background: 'transparent', borderColor: color };
+}
+
+/* ---------- store: everything lives on this phone ---------- */
+const DATA_KEY = 'slow-growing:data';
+const VERSION = { label: '01 ver.', date: '2026.10.03' };
+function seedData() {
+  const t = ymd(dayStart(new Date()));
+  return { v: 1, theme: null, lastBackup: null, logs: {}, habits: [
+    { id: 'sleep', name: '早點睡覺', n: 1, unit: 'day', color: '#96b8ea', created: t },
+    { id: 'bike', name: '騎車20分', n: 1, unit: 'day', color: '#fce76d', created: t },
+    { id: 'tea', name: '奶茶追蹤', n: 2, unit: 'day', color: '#ffcade', created: t }
+  ] };
+}
+function useStore() {
+  const [data, setData] = useState(() => {
+    try { const raw = localStorage.getItem(DATA_KEY); if (raw) { const d = JSON.parse(raw); if (d && d.v === 1) return d; } } catch (e) {}
+    return seedData();
+  });
+  useEffect(() => { try { localStorage.setItem(DATA_KEY, JSON.stringify(data)); } catch (e) {} }, [data]);
+  useEffect(() => { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {} }, []);
+  return {
+    habits: data.habits, logs: data.logs, theme: data.theme, lastBackup: data.lastBackup, mode: 'device',
+    saveHabits: list => setData(d => Object.assign({}, d, { habits: list })),
+    setLog: (h, date, val) => setData(d => {
+      const k = ymKey(date.getFullYear(), date.getMonth());
+      const key = h.id + '|' + pad(date.getDate());
+      const m = Object.assign({}, d.logs[k] || {});
+      if (val) m[key] = true; else delete m[key];
+      return Object.assign({}, d, { logs: Object.assign({}, d.logs, { [k]: m }) });
+    }),
+    setTheme: t => setData(d => Object.assign({}, d, { theme: t })),
+    markBackup: () => setData(d => Object.assign({}, d, { lastBackup: new Date().toISOString() })),
+    snapshot: () => ({ app: 'slow-growing', format: 1, exportedAt: new Date().toISOString(), habits: data.habits, logs: data.logs, theme: data.theme }),
+    restore: b => setData(d => ({ v: 1, theme: b.theme == null ? d.theme : b.theme, lastBackup: d.lastBackup, habits: b.habits, logs: b.logs || {} }))
+  };
+}
+function parseBackup(text) {
+  const b = JSON.parse(text);
+  if (!b || b.app !== 'slow-growing' || !Array.isArray(b.habits)) throw new Error('not a backup');
+  const ok = b.habits.every(h => h && typeof h.id === 'string' && typeof h.name === 'string' && typeof h.color === 'string' && (h.unit === 'day' || h.unit === 'week') && h.n >= 1);
+  if (!ok) throw new Error('bad habits');
+  if (b.logs && typeof b.logs !== 'object') throw new Error('bad logs');
+  return b;
+}
+const fmtDate = iso => { const d = new Date(iso); return d.getFullYear() + '.' + pad(d.getMonth() + 1) + '.' + pad(d.getDate()); };
+
+function useToday() {
+  const [today, setToday] = useState(() => dayStart(new Date()));
+  useEffect(() => {
+    const tick = () => { const t = dayStart(new Date()); setToday(prev => sameDay(prev, t) ? prev : t); };
+    const id = setInterval(tick, 60000);
+    document.addEventListener('visibilitychange', tick);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', tick); };
+  }, []);
+  return today;
+}
+
+/* ---------- reorder state shared by gestures ---------- */
+let REORDERING = false;
+let suppressUntil = 0;
+document.addEventListener('touchmove', e => { if (REORDERING) e.preventDefault(); }, { passive: false });
+
+/* ---------- small pieces ---------- */
+function CheckButton({ done, color, pop, label, onClick, top }) {
+  return html`<button className=${'chk' + (top ? ' top' : '')} aria-label=${label} onClick=${onClick}>
+    ${done
+      ? html`<span className=${'ck-done' + (pop ? ' pop' : '')}>
+          <span className="ring" style=${{ background: color }}></span>
+          <span className="dot" style=${{ background: color }}></span>
+          <span aria-hidden="true" style=${{ display: 'flex', position: 'relative' }} dangerouslySetInnerHTML=${{ __html: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path class="tick" d="M6 12.5l4 4L18 8.5"/></svg>' }}></span>
+        </span>`
+      : html`<span className="ck-empty"><${Icon} name="save" size=${13} width=${2.4} /></span>`}
+  </button>`;
+}
+
+function SwipeCard({ open, setOpen, enabled, name, onEdit, onDelete, className, style, children }) {
+  const [dx, setDx] = useState(null);
+  const d = useRef(null);
+  const suppress = useRef(0);
+  const base = open ? -REVEAL : 0;
+  const x = dx != null ? dx : base;
+  const down = e => {
+    if (!enabled || REORDERING) return;
+    if (e.target && e.target.closest && e.target.closest('.chk')) return;
+    d.current = { x0: e.clientX, y0: e.clientY, base, active: false, x: base };
+  };
+  const move = e => {
+    if (REORDERING) { if (d.current) { d.current = null; setDx(null); } return; }
+    const s = d.current; if (!s) return;
+    const mx = e.clientX - s.x0, my = e.clientY - s.y0;
+    if (!s.active) {
+      if (Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(my)) s.active = true;
+      else { if (Math.abs(my) > 10) d.current = null; return; }
+    }
+    let nx = s.base + mx;
+    if (nx > 0) nx = nx * 0.25;
+    if (nx < -REVEAL) nx = -REVEAL + (nx + REVEAL) * 0.3;
+    s.x = nx; setDx(nx);
+  };
+  const up = () => {
+    const s = d.current; d.current = null;
+    if (!s || !s.active) return;
+    suppress.current = Date.now();
+    setDx(null); setOpen(s.x < -REVEAL / 2);
+  };
+  const wasDrag = () => Date.now() - suppress.current < 350;
+  return html`<div className="swipe">
+    ${enabled && html`<div className="actions" style=${{ visibility: x < -4 ? 'visible' : 'hidden', opacity: Math.min(1, -x / 90) }}>
+      <button className="round sm press" aria-label=${'編輯「' + name + '」'} onClick=${onEdit}><${Icon} name="pencil" /></button>
+      <button className="round sm press danger" aria-label=${'刪除「' + name + '」'} onClick=${onDelete}><${Icon} name="trash" /></button>
+    </div>`}
+    <div className=${className}
+      style=${Object.assign({}, style, { transform: 'translateX(' + Math.round(x) + 'px)', transition: dx != null ? 'none' : 'transform .55s cubic-bezier(.25,1.15,.4,1), background-color .5s ease' })}
+      onPointerDown=${down} onPointerMove=${move} onPointerUp=${up} onPointerCancel=${up} onPointerLeave=${up}>
+      ${children(wasDrag)}
+    </div>
+  </div>`;
+}
+
+/* ---------- home ---------- */
+function Home(p) {
+  const { store, today, view, setView, listAnim, monthOff, shiftMonth, openId, setOpenId, lastTap, toggleToday, openDetail, openForm, askDelete, toggleTheme, openSettings } = p;
+  const habits = store.habits;
+  const sw = useRef(null);
+  const listRef = useRef(null);
+  const [drag, setDrag] = useState(null);
+  const [settle, setSettle] = useState(false);
+  const lp = useRef(null);
+  const dragRef = useRef(null);
+
+  // long-press a card, then drag it up or down; one order shared by all three views
+  const beginDrag = (id, y0) => {
+    const el = listRef.current; if (!el) return;
+    const nodes = Array.from(el.children).filter(n => n.getAttribute && n.getAttribute('data-id'));
+    const rects = nodes.map(n => n.getBoundingClientRect());
+    const from = nodes.findIndex(n => n.getAttribute('data-id') === id);
+    if (from < 0) return;
+    const list = (habits || []).slice();
+    REORDERING = true; setOpenId(null);
+    const gap = rects.length > 1 ? rects[1].top - rects[0].bottom : 16;
+    const first = { id, from, to: from, dy: 0, y0, rects, gap };
+    dragRef.current = first; setDrag(first);
+    const onMove = e => {
+      if (e.type === 'pointermove' && e.pointerType === 'touch') return;
+      const st = dragRef.current; if (!st) return;
+      if (e.type === 'touchmove') e.preventDefault();
+      const y = e.touches ? e.touches[0].clientY : e.clientY;
+      const dy = y - st.y0;
+      const center = st.rects[st.from].top + st.rects[st.from].height / 2 + dy;
+      let to = 0;
+      st.rects.forEach((r, i) => { if (i !== st.from && center > r.top + r.height / 2) to++; });
+      const ns = Object.assign({}, st, { dy, to }); dragRef.current = ns; setDrag(ns);
+    };
+    const onUp = () => {
+      window.removeEventListener('touchmove', onMove); window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('touchend', onUp); window.removeEventListener('touchcancel', onUp); window.removeEventListener('pointerup', onUp);
+      const st = dragRef.current; if (!st) return;
+      dragRef.current = null; REORDERING = false; suppressUntil = Date.now() + 450;
+      if (st.to !== st.from) {
+        const [moved] = list.splice(st.from, 1); list.splice(st.to, 0, moved);
+        setSettle(true); store.saveHabits(list);
+        requestAnimationFrame(() => requestAnimationFrame(() => setSettle(false)));
+      }
+      setDrag(null);
+    };
+    window.addEventListener('touchmove', onMove, { passive: false }); window.addEventListener('pointermove', onMove);
+    window.addEventListener('touchend', onUp); window.addEventListener('touchcancel', onUp); window.addEventListener('pointerup', onUp);
+  };
+  const startPress = (e, id) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.target && e.target.closest && e.target.closest('.chk, .actions')) return;
+    if (lp.current) clearTimeout(lp.current.timer);
+    const y0 = e.clientY;
+    lp.current = { x0: e.clientX, y0, timer: setTimeout(() => { lp.current = null; beginDrag(id, y0); }, 450) };
+  };
+  const movePress = e => {
+    const l = lp.current; if (!l) return;
+    if (Math.abs(e.clientX - l.x0) > 8 || Math.abs(e.clientY - l.y0) > 8) { clearTimeout(l.timer); lp.current = null; }
+  };
+  const endPress = () => { const l = lp.current; if (l) { clearTimeout(l.timer); lp.current = null; } };
+  const rowStyle = (i, id) => {
+    if (!drag) return settle ? { transition: 'none' } : { transition: 'transform .3s ease' };
+    if (id === drag.id) return { position: 'relative', zIndex: 3, transform: 'translateY(' + drag.dy + 'px) scale(1.03)', transition: 'none', filter: 'drop-shadow(0 12px 18px rgba(50,50,50,.16))' };
+    const step = drag.rects[drag.from].height + drag.gap;
+    let off = 0;
+    if (drag.from < drag.to && i > drag.from && i <= drag.to) off = -step;
+    if (drag.from > drag.to && i >= drag.to && i < drag.from) off = step;
+    return { transform: 'translateY(' + off + 'px)', transition: 'transform .28s cubic-bezier(.25,.9,.35,1)' };
+  };
+  const swDown = e => { if (view !== 'month') return; sw.current = { x: e.clientX, y: e.clientY }; };
+  const swUp = e => {
+    const s = sw.current; sw.current = null; if (!s || REORDERING || Date.now() < suppressUntil) return;
+    const dx = e.clientX - s.x, dy = e.clientY - s.y;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) shiftMonth(dx > 0 ? -1 : 1);
+  };
+
+  const mBase = new Date(today.getFullYear(), today.getMonth() + monthOff, 1);
+  const my = mBase.getFullYear(), mm = mBase.getMonth();
+  const mon = new Date(today); mon.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const weekDays = DOW.map((_, i) => { const d = new Date(mon); d.setDate(mon.getDate() + i); return d; });
+
+  const rows = (habits || []).map(h => {
+    const cur = monthInfo(h, today.getFullYear(), today.getMonth(), store.logs, today);
+    const shown = monthOff === 0 ? cur : monthInfo(h, my, mm, store.logs, today);
+    return { h, cur, shown, done: statusOf(h, today, store.logs, today) === true };
+  });
+  const avg = rows.length ? rows.reduce((a, r) => a + r.shown.p, 0) / rows.length : 0;
+
+  const nameBtn = (r, wasDrag, inner) => html`<button className="namebtn" aria-label=${'打開「' + r.h.name + '」'}
+    onClick=${() => { if (Date.now() < suppressUntil) return; if (wasDrag && wasDrag()) return; if (openId) { setOpenId(null); return; } openDetail(r.h.id); }}>${inner}</button>`;
+  const check = (r, top) => html`<${CheckButton} done=${r.done} color=${r.h.color} pop=${r.done && lastTap === r.h.id} top=${top}
+    label=${r.done ? r.h.name + '：今天已完成，點一下取消' : r.h.name + '：今天打卡'} onClick=${() => toggleToday(r.h)} />`;
+
+  const card = r => {
+    const h = r.h;
+    const common = { key: h.id, open: openId === h.id, setOpen: o => setOpenId(o ? h.id : null), name: h.name,
+      onEdit: () => openForm('edit', h, 'home'), onDelete: () => askDelete(h.id) };
+    if (view === 'main') return html`<${SwipeCard} ...${common} enabled=${true} className="card main">
+      ${wasDrag => html`
+        <div className="fill" style=${{ width: fillW(r.cur.p), background: h.color }}></div>
+        <div className="row">
+          ${nameBtn(r, wasDrag, html`<span className="hname">${h.name}</span><span className="freq">${freqText(h.n, h.unit)}</span>`)}
+          <div className="pct">${pctStr(r.cur.p)}</div>
+          ${check(r)}
+        </div>`}
+    </${SwipeCard}>`;
+    if (view === 'week') return html`<${SwipeCard} ...${common} enabled=${true} className="card week">
+      ${wasDrag => html`
+        ${nameBtn(r, wasDrag, html`<span className="hname">${h.name}</span><span className="freq">${freqText(h.n, h.unit)}</span>`)}
+        <div className="wk" aria-label="本週">
+          ${weekDays.map((d, i) => html`<div key=${'l' + i} className="wk-l" style=${{ fontWeight: sameDay(d, today) ? 700 : 400 }}>${DOW[i]}</div>`)}
+          ${weekDays.map((d, i) => html`<div key=${'c' + i} className="cell" style=${cellLook(h.color, statusOf(h, d, store.logs, today))}></div>`)}
+        </div>
+        ${check(r)}`}
+    </${SwipeCard}>`;
+    // 7×5: days land by weekday; a 36th+ slot wraps into the empty start of the first row
+    const cells = Array.from({ length: 35 }, () => ({ blank: true }));
+    for (let dd = 1; dd <= r.shown.dim; dd++) { let pos = r.shown.lead + dd - 1; if (pos >= 35) pos -= 35; cells[pos] = { v: r.shown.stats[dd] }; }
+    return html`<div key=${h.id} className="card month">
+      ${nameBtn(r, null, html`<span style=${{ display: 'flex', flexDirection: 'column', gap: '3px' }}><span className="hname">${h.name}</span><span className="freq">${freqText(h.n, h.unit)}</span></span><span className="pct">${pctStr(r.shown.p)}</span>`)}
+      <div className="mg">${cells.map((c, i) => html`<div key=${i} className="cell" style=${c.blank ? {} : cellLook(h.color, c.v)}></div>`)}</div>
+      ${check(r, true)}
+    </div>`;
+  };
+
+  return html`<div className="screen home">
+    <header className="top">
+      <div className="brand">
+        <button className="logo" aria-label="切換深色或淺色" onClick=${toggleTheme} dangerouslySetInnerHTML=${{ __html: LOGO }}></button>
+        <h1>Slow Growing</h1>
+      </div>
+      <button className="iconbtn press" aria-label="打開設定" onClick=${openSettings}><${Icon} name="menu" size=${30} width=${1.3} /></button>
+    </header>
+
+    <nav className="tabs">
+      ${VIEWS.map((v, i) => html`<button key=${v} className="tab" aria-pressed=${view === v ? 'true' : 'false'} onClick=${() => setView(v)}>${['Main', 'Week', 'Month'][i]}</button>`)}
+    </nav>
+
+    ${view === 'month' && html`<div className="monthnav" onPointerDown=${swDown} onPointerUp=${swUp} style=${{ touchAction: 'pan-y' }}>
+      <button className="arrow" aria-label="上個月" onClick=${() => shiftMonth(-1)}><${Icon} name="left" size=${18} width=${1.8} /></button>
+      <div className="capsule">
+        <div key=${'cap' + monthOff} className=${'capsule-in ' + listAnim}>
+          <div className="cap-month">${my}年 ${mm + 1}月</div>
+          <div className="cap-row"><span className="cap-label">平均完成度</span><span className="cap-pct">${pctStr(avg)}</span></div>
+        </div>
+      </div>
+      <button className="arrow" aria-label="下個月" disabled=${monthOff >= 0} onClick=${() => shiftMonth(1)}><${Icon} name="right" size=${18} width=${1.8} /></button>
+    </div>`}
+
+    ${habits === null && html`<div className="empty">正在讀取你的習慣…</div>`}
+    ${habits && habits.length === 0 && html`<div className="empty">還沒有習慣喔<br />按右上角的 ＋ 新增一個吧</div>`}
+
+    <div key=${view + (view === 'month' ? monthOff : '')} ref=${listRef} className=${'list ' + listAnim} onPointerDown=${swDown} onPointerUp=${swUp}>
+      ${rows.map((r, i) => html`<div key=${r.h.id} data-id=${r.h.id} className="row-wrap" style=${rowStyle(i, r.h.id)}
+        onPointerDown=${e => startPress(e, r.h.id)} onPointerMove=${movePress} onPointerUp=${endPress} onPointerCancel=${endPress}>${card(r)}</div>`)}
+    </div>
+
+    <button className="fab" aria-label="新增習慣" onClick=${() => openForm('add')}><${Icon} name="plus" size=${26} width=${1.5} /></button>
+  </div>`;
+}
+
+/* ---------- detail ---------- */
+function Detail({ h, store, today, dOff, shiftD, calAnim, goHome, openForm }) {
+  const base = new Date(today.getFullYear(), today.getMonth() + dOff, 1);
+  const info = monthInfo(h, base.getFullYear(), base.getMonth(), store.logs, today);
+  const sw = useRef(null);
+  const swDown = e => { sw.current = { x: e.clientX, y: e.clientY }; };
+  const swUp = e => {
+    const s = sw.current; sw.current = null; if (!s) return;
+    const dx = e.clientX - s.x, dy = e.clientY - s.y;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) shiftD(dx > 0 ? -1 : 1);
+  };
+  const days = [];
+  for (let i = 0; i < info.lead; i++) days.push(html`<div key=${'b' + i}></div>`);
+  for (let dd = 1; dd <= info.dim; dd++) {
+    const date = new Date(info.y, info.m, dd);
+    const v = info.stats[dd];
+    const isT = sameDay(date, today);
+    const dis = v === 'pre' || (v === null && !isT);
+    const look = cellLook(h.color, v);
+    if (isT && v !== true) look.borderColor = 'var(--ink)';
+    days.push(html`<button key=${dd} className=${'day' + (v === true ? ' done' : '')} style=${look} disabled=${dis}
+      aria-label=${(info.m + 1) + '月' + dd + '日，' + (v === true ? '已完成' : (dis ? '無法打卡' : '未完成'))}
+      onClick=${() => store.setLog(h, date, v !== true)}>${dd}</button>`);
+  }
+  return html`<div className="screen tight">
+    <header className="top">
+      <button className="round press" aria-label="返回" onClick=${goHome}><${Icon} name="left" /></button>
+      <h2>${h.name}</h2>
+      <button className="round press" aria-label="編輯習慣" onClick=${() => openForm('edit', h, 'detail')}><${Icon} name="pencil" /></button>
+    </header>
+    <section className="panel summary">
+      <div className="sum-top">
+        <div>
+          <div className="sum-label">${dOff === 0 ? '本月完成度' : (info.m + 1) + '月完成度'}</div>
+          <div className="sum-pct">${pctStr(info.p)}</div>
+        </div>
+        <div className="chip" style=${{ background: h.color + '55' }}>${freqText(h.n, h.unit)}</div>
+      </div>
+      <div className="bar-track"><div className="bar" style=${{ width: (info.p * 100).toFixed(2) + '%', background: h.color }}></div></div>
+      <div className="sum-count">達成 ${info.doneCount} / ${info.target} 次 · 共打卡 ${info.doneDays} 天</div>
+    </section>
+    <section className="panel cal" onPointerDown=${swDown} onPointerUp=${swUp}>
+      <div className="cal-head">
+        <button className="arrow" aria-label="上個月" onClick=${() => shiftD(-1)}><${Icon} name="left" size=${18} width=${1.8} /></button>
+        <div key=${'t' + dOff} className=${'cal-title ' + calAnim}>${info.y}年 ${info.m + 1}月</div>
+        <button className="arrow" aria-label="下個月" disabled=${dOff >= 0} onClick=${() => shiftD(1)}><${Icon} name="right" size=${18} width=${1.8} /></button>
+      </div>
+      <div key=${'g' + dOff} className=${calAnim}>
+        <div className="cal-grid">${DOW.map(l => html`<div key=${l} className="cal-l">${l}</div>`)}</div>
+        <div className="cal-grid">${days}</div>
+      </div>
+    </section>
+  </div>`;
+}
+
+/* ---------- add / edit ---------- */
+function Form({ form, setForm, onClose, onSave, onDelete }) {
+  const name = form.name || '';
+  const trimmed = name.trim();
+  const maxN = form.unit === 'week' ? 8 : 30;
+  const inPalette = PALETTE.some(p => p.color === form.color);
+  const patch = o => setForm(Object.assign({}, form, o));
+  return html`<div className="screen tight">
+    <header className="top" style=${{ marginBottom: '8px' }}>
+      <button className="round press" aria-label="關閉" onClick=${onClose}><${Icon} name="close" /></button>
+      <h2>${form.mode === 'edit' ? '編輯習慣' : '新習慣'}</h2>
+      <button className="round brandbtn press" aria-label="儲存" disabled=${!trimmed} style=${{ opacity: trimmed ? 1 : 0.4, transition: 'opacity .3s ease' }} onClick=${onSave}><${Icon} name="save" width=${2.2} /></button>
+    </header>
+    <div className="panel field">
+      <input id="habit-name" type="text" aria-label="習慣名稱" placeholder="想養成什麼習慣？" autocomplete="off" value=${name}
+        onChange=${e => patch({ name: String(e.target.value).slice(0, 20) })}
+        onKeyDown=${e => { if (e.key === 'Enter' && trimmed) onSave(); }} />
+    </div>
+    <div className="panel group">
+      <div className="g-head"><div className="g-title">頻率</div><div className="g-sub">${freqText(form.n, form.unit)}</div></div>
+      <div className="g-row">
+        <div className="stepper">
+          <button className="step press" aria-label="減少" onClick=${() => patch({ n: Math.max(1, form.n - 1) })}><${Icon} name="minus" size=${16} width=${2} /></button>
+          <div className="step-n" aria-live="polite">${form.n}</div>
+          <button className="step press" aria-label="增加" onClick=${() => patch({ n: Math.min(maxN, form.n + 1) })}><${Icon} name="add" size=${16} width=${2} /></button>
+        </div>
+        <div className="units">
+          ${[['day', '天'], ['week', '週']].map(u => html`<button key=${u[0]} className="unit" aria-pressed=${form.unit === u[0] ? 'true' : 'false'}
+            onClick=${() => patch({ unit: u[0], n: Math.min(form.n, u[0] === 'week' ? 8 : 30) })}>${u[1]}</button>`)}
+        </div>
+      </div>
+    </div>
+    <div className="panel group">
+      <div className="g-title">顏色</div>
+      <div className="swatches">
+        ${PALETTE.map(p => html`<button key=${p.color} className=${'sw' + (form.color === p.color ? ' on' : '')} aria-label=${p.label}
+          aria-pressed=${form.color === p.color ? 'true' : 'false'} onClick=${() => patch({ color: p.color })}><span style=${{ background: p.color }}></span></button>`)}
+        <label className=${'sw' + (inPalette ? '' : ' on')}>
+          <span style=${{ background: inPalette ? 'conic-gradient(#ffcade, #fce76d, #b8dba6, #96b8ea, #cdc1ee, #ffcade)' : form.color }}></span>
+          <input id="habit-color" type="color" aria-label="自訂顏色" value=${form.color} onChange=${e => patch({ color: String(e.target.value).toLowerCase() })} />
+        </label>
+      </div>
+    </div>
+    <div className="card main" style=${{ marginTop: '6px' }}>
+      <div className="fill" style=${{ width: fillW(0.62), background: form.color, animation: 'none', transition: 'background-color .3s ease' }}></div>
+      <div className="row"><div className="namebtn" style=${{ flex: 1 }}><span className="hname">${trimmed || '習慣名稱'}</span><span className="freq">${freqText(form.n, form.unit)}</span></div></div>
+    </div>
+    <div className="preview-cap">預覽</div>
+    ${form.mode === 'edit' && html`<button className="textbtn" onClick=${onDelete}>刪除這個習慣</button>`}
+  </div>`;
+}
+
+/* ---------- settings ---------- */
+const HEART = '<svg viewBox="0 0 62.746 53.366" aria-hidden="true"><path style="fill:var(--brand)" d="M34.037,53.365c-6.081-.072-12.311-3.075-17.261-6.491C8.953,41.476,1.818,33.924.251,24.024-1.134,15.279,3.323,6.826,11.036,2.939c6.831-3.443,14.92-1.006,19.523,5.069.471.622,1.386.571,1.784-.1C36.079,1.633,43.365-1.412,50.295.631c8.477,2.499,12.956,11.418,12.406,20.092-.49,7.728-4.246,14.883-9.063,20.671-5.009,6.018-11.394,12.068-19.602,11.971Z"/></svg>';
+function Settings({ store, onClose, onBackup, onPickRestore, toggleTheme }) {
+  const last = store.lastBackup;
+  const stale = !last || (Date.now() - new Date(last).getTime()) > 14 * 864e5;
+  return html`<div className="screen tight">
+    <header className="top" style=${{ marginBottom: '8px' }}>
+      <div className="brand">
+        <button className="logo" aria-label="切換深色或淺色" onClick=${toggleTheme} dangerouslySetInnerHTML=${{ __html: LOGO }}></button>
+        <h1>Slow Growing</h1>
+      </div>
+      <button className="iconbtn press" aria-label="關閉設定" onClick=${onClose}><${Icon} name="right" size=${26} width=${1.4} /></button>
+    </header>
+    <div className="setlist">
+      <button className="setrow" onClick=${onBackup}>
+        <span><span className="set-title">iCloud 備份</span><span className=${'set-sub' + (stale ? ' warn' : '')} style=${{ display: 'block' }}>${last ? fmtDate(last) : '還沒備份過'}</span></span>
+        <span className="set-icon"><${Icon} name=${stale ? 'cloudUp' : 'cloudOk'} size=${38} width=${1.3} /></span>
+      </button>
+      <button className="setrow" onClick=${onPickRestore}>
+        <span><span className="set-title">從備份還原</span><span className="set-sub" style=${{ display: 'block' }}>選擇之前存的備份檔</span></span>
+        <span className="set-icon"><${Icon} name="restore" size=${26} width=${1.4} /></span>
+      </button>
+      <div className="setrow">
+        <span><span className="set-title">版本維護 ${VERSION.label}</span><span className="set-sub" style=${{ display: 'block' }}>${VERSION.date}</span></span>
+      </div>
+    </div>
+    <p className="thanks">特別感謝 <span style=${{ display: 'flex' }} dangerouslySetInnerHTML=${{ __html: HEART }}></span> 我的Claude阿澈</p>
+  </div>`;
+}
+
+/* ---------- app ---------- */
+function App() {
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  const showToast = msg => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2600); };
+  const store = useStore();
+  const fileRef = useRef(null);
+  const [pendingRestore, setPendingRestore] = useState(null);
+  const today = useToday();
+
+  const [view, setViewState] = useState(() => { const v = lsGet('view'); return VIEWS.indexOf(v) >= 0 ? v : 'main'; });
+  const [listAnim, setListAnim] = useState('');
+  const [monthOff, setMonthOff] = useState(0);
+  const [page, setPage] = useState({ name: 'home', id: null, anim: '' });
+  const [dOff, setDOff] = useState(0);
+  const [calAnim, setCalAnim] = useState('');
+  const [openId, setOpenId] = useState(null);
+  const [lastTap, setLastTap] = useState(null);
+  const [form, setForm] = useState(null);
+  const [confirmId, setConfirmId] = useState(null);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (store.theme === 'dark' || store.theme === 'light') root.setAttribute('data-app', store.theme);
+    else root.removeAttribute('data-app');
+    const sync = () => {
+      const bg = getComputedStyle(root).getPropertyValue('--bg').trim();
+      const m = document.getElementById('theme-color'); if (m && bg) m.setAttribute('content', bg);
+    };
+    sync();
+    const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    if (mq && mq.addEventListener) { mq.addEventListener('change', sync); return () => mq.removeEventListener('change', sync); }
+  }, [store.theme]);
+
+  const doBackup = async () => {
+    const snap = store.snapshot();
+    const name = 'slow-growing-backup-' + ymd(new Date()) + '.json';
+    const text = JSON.stringify(snap, null, 2);
+    let file = null;
+    try { file = new File([text], name, { type: 'application/json' }); } catch (e) {}
+    try {
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Slow Growing 備份' });
+        store.markBackup(); showToast('備份好了');
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+    try {
+      const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      store.markBackup(); showToast('備份檔已下載');
+    } catch (e) { showToast('這台裝置沒辦法存備份檔'); }
+  };
+  const pickRestore = () => { if (fileRef.current) { fileRef.current.value = ''; fileRef.current.click(); } };
+  const onFile = e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try { setPendingRestore(parseBackup(String(r.result))); }
+      catch (err) { showToast('這個檔案不是 Slow Growing 的備份'); }
+    };
+    r.onerror = () => showToast('讀不到這個檔案');
+    r.readAsText(f);
+  };
+
+  const habits = store.habits || [];
+  const find = id => habits.find(h => h.id === id) || null;
+
+  const setView = v => {
+    if (v === view) return;
+    setListAnim(VIEWS.indexOf(v) > VIEWS.indexOf(view) ? 'in-r' : 'in-l');
+    setViewState(v); lsSet('view', v); setOpenId(null); setLastTap(null);
+  };
+  const shiftMonth = dir => {
+    const n = monthOff + dir; if (n > 0 || n < -24) return;
+    setListAnim(dir > 0 ? 'in-r' : 'in-l'); setMonthOff(n);
+  };
+  const shiftD = dir => {
+    const n = dOff + dir; if (n > 0 || n < -24) return;
+    setCalAnim(dir > 0 ? 'in-r' : 'in-l'); setDOff(n);
+  };
+  const go = (name, id, anim) => {
+    setPage({ name, id: id || null, anim: anim || '' });
+    setOpenId(null); setLastTap(null);
+    try { window.scrollTo(0, 0); } catch (e) {}
+  };
+  const toggleToday = h => {
+    const done = statusOf(h, today, store.logs, today) === true;
+    store.setLog(h, today, !done);
+    setLastTap(!done ? h.id : null);
+  };
+  const openDetail = id => { setDOff(0); setCalAnim(''); go('detail', id, 'in-r'); };
+  const openForm = (mode, h, returnTo) => {
+    setForm(mode === 'edit'
+      ? { mode: 'edit', id: h.id, name: h.name, n: h.n, unit: h.unit, color: h.color, returnTo: returnTo || 'home' }
+      : { mode: 'add', id: null, name: '', n: 1, unit: 'day', color: PALETTE[0].color, returnTo: 'home' });
+    go('form', page.id, 'pg-up');
+  };
+  const closeForm = () => {
+    if (form && form.mode === 'edit' && form.returnTo === 'detail') go('detail', form.id, 'in-l');
+    else go('home', null, 'in-l');
+  };
+  const saveForm = () => {
+    const name = (form.name || '').trim(); if (!name) return;
+    if (form.mode === 'edit') {
+      store.saveHabits(habits.map(h => h.id === form.id ? Object.assign({}, h, { name, n: form.n, unit: form.unit, color: form.color }) : h));
+    } else {
+      store.saveHabits(habits.concat([{ id: 'h' + Date.now().toString(36), name, n: form.n, unit: form.unit, color: form.color, created: ymd(today) }]));
+      showToast('新增了「' + name + '」');
+    }
+    closeForm();
+  };
+  const doDelete = () => {
+    const h = find(confirmId); if (!h) { setConfirmId(null); return; }
+    store.saveHabits(habits.filter(x => x.id !== h.id));
+    setConfirmId(null);
+    if (page.name !== 'home') go('home', null, 'in-l');
+    showToast('已刪除「' + h.name + '」');
+  };
+  const toggleTheme = () => {
+    const root = document.documentElement;
+    let dark;
+    if (store.theme) dark = store.theme === 'dark';
+    else if (root.getAttribute('data-theme')) dark = root.getAttribute('data-theme') === 'dark';
+    else dark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    store.setTheme(dark ? 'light' : 'dark');
+  };
+
+  let body;
+  const detailH = page.name === 'detail' ? find(page.id) : null;
+  if (page.name === 'settings') {
+    body = html`<${Settings} store=${store} onClose=${() => go('home', null, 'in-l')} onBackup=${doBackup} onPickRestore=${pickRestore} toggleTheme=${toggleTheme} />`;
+  } else if (page.name === 'form' && form) {
+    body = html`<${Form} form=${form} setForm=${setForm} onClose=${closeForm} onSave=${saveForm} onDelete=${() => setConfirmId(form.id)} />`;
+  } else if (detailH) {
+    body = html`<${Detail} h=${detailH} store=${store} today=${today} dOff=${dOff} shiftD=${shiftD} calAnim=${calAnim}
+      goHome=${() => go('home', null, 'in-l')} openForm=${openForm} />`;
+  } else {
+    body = html`<${Home} store=${store} today=${today} view=${view} setView=${setView} listAnim=${listAnim}
+      monthOff=${monthOff} shiftMonth=${shiftMonth} openId=${openId} setOpenId=${setOpenId} lastTap=${lastTap}
+      toggleToday=${toggleToday} openDetail=${openDetail} openForm=${openForm} askDelete=${id => { setOpenId(null); setConfirmId(id); }}
+      toggleTheme=${toggleTheme} openSettings=${() => go('settings', null, 'in-r')} />`;
+  }
+  const confirmH = confirmId ? find(confirmId) : null;
+
+  return html`<${React.Fragment}>
+    <div key=${page.name + (page.id || '')} className=${page.anim}>${body}</div>
+    ${confirmH && html`<div className="overlay fade-in" onClick=${e => { if (e.target === e.currentTarget) setConfirmId(null); }}>
+      <div className="dialog pop-in" role="dialog" aria-modal="true" aria-labelledby="dlg-t">
+        <div id="dlg-t" className="dlg-title">刪除「${confirmH.name}」？</div>
+        <div className="dlg-text">打卡紀錄會一起刪除，刪除後沒辦法復原。</div>
+        <div className="dlg-btns">
+          <button className="pill press" style=${{ width: 'auto', height: '48px' }} onClick=${() => setConfirmId(null)}>取消</button>
+          <button className="pill danger press" style=${{ width: 'auto', height: '48px' }} onClick=${doDelete}>刪除</button>
+        </div>
+      </div>
+    </div>`}
+    ${pendingRestore && html`<div className="overlay fade-in" onClick=${e => { if (e.target === e.currentTarget) setPendingRestore(null); }}>
+      <div className="dialog pop-in" role="dialog" aria-modal="true" aria-labelledby="rs-t">
+        <div id="rs-t" className="dlg-title">用這份備份還原？</div>
+        <div className="dlg-text">備份日期 ${pendingRestore.exportedAt ? fmtDate(pendingRestore.exportedAt) : '不明'}，有 ${pendingRestore.habits.length} 個習慣。目前手機上的紀錄會被這份備份取代。</div>
+        <div className="dlg-btns">
+          <button className="pill press" onClick=${() => setPendingRestore(null)}>取消</button>
+          <button className="pill brand press" onClick=${() => { store.restore(pendingRestore); setPendingRestore(null); go('home', null, 'in-l'); showToast('還原好了'); }}>還原</button>
+        </div>
+      </div>
+    </div>`}
+    <input ref=${fileRef} id="restore-file" type="file" accept="application/json,.json" style=${{ display: 'none' }} onChange=${onFile} />
+    ${toast && html`<div className="toast fade-in" role="status">${toast}</div>`}
+  </${React.Fragment}>`;
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(html`<${App} />`);
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+</script>
+</body>
+</html>
