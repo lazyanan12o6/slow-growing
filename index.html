@@ -80,10 +80,11 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 .monthnav{margin-inline:-24px;display:grid;grid-template-columns:1fr 70% 1fr;align-items:center}
 .arrow{width:44px;height:44px;border:none;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;color:var(--ring);justify-self:center}
 .arrow:disabled{opacity:.35}
-.capsule{background:var(--surface);border-radius:999px;padding:20px 12px;overflow:hidden;transition:background-color .5s ease}
-.capsule-in{display:flex;flex-direction:column;align-items:center;gap:6px;white-space:nowrap}
-.cap-month{font-size:14px;font-weight:600;letter-spacing:.1em}
-.cap-row{display:flex;align-items:baseline;gap:10px}
+.capsule{background:var(--surface);border-radius:999px;padding:29px 12px;overflow:hidden;transition:background-color .5s ease}
+.capsule-in{display:flex;flex-direction:column;align-items:center;gap:3px;white-space:nowrap}
+.cap-month{font-size:14px;font-weight:600;letter-spacing:.1em;line-height:1}
+.cap-month.titlebtn{min-height:0;padding:10px 12px;margin:-10px 0}
+.cap-row{display:flex;align-items:baseline;gap:10px;line-height:1}
 .cap-label{font-size:13px;font-weight:600;letter-spacing:.1em}
 .cap-pct{font-family:var(--f-num);font-size:26px;font-weight:500;letter-spacing:.02em;color:var(--brand)}
 
@@ -110,9 +111,10 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 @keyframes grow{from{width:0}}
 @keyframes wobble{0%,100%{border-top-right-radius:22px 50%;border-bottom-right-radius:22px 50%}35%{border-top-right-radius:27px 44%;border-bottom-right-radius:18px 56%}70%{border-top-right-radius:18px 55%;border-bottom-right-radius:26px 45%}}
 
-.wk{flex:1;display:grid;grid-template-columns:repeat(7,16px);column-gap:9px;row-gap:7px;justify-content:center}
+.wk{flex:1;min-width:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));column-gap:4px;row-gap:7px;justify-items:center}
 .wk-l{text-align:center;font-size:10px}
 .mg{display:grid;grid-template-columns:repeat(7,16px);gap:9px;flex-shrink:0;padding-top:6px}
+@media (max-width:389px){.mg{gap:7px}}
 .cell{width:16px;height:16px;box-sizing:border-box;border-radius:5px;border:1.2px solid transparent;transition:background-color .45s ease,border-color .45s ease}
 
 /* check button */
