@@ -92,7 +92,7 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 .row-wrap{-webkit-touch-callout:none;will-change:transform}
 .swipe{position:relative}
 .actions{position:absolute;right:2px;top:0;bottom:0;display:flex;align-items:center;gap:10px}
-.card{position:relative;background:var(--surface);border-radius:18px;touch-action:pan-y;transition:background-color .5s ease}
+.card{cursor:pointer;position:relative;background:var(--surface);border-radius:18px;touch-action:pan-y;transition:background-color .5s ease}
 .card.main{height:70px;overflow:hidden}
 .card.week{min-height:70px;box-sizing:border-box;padding:12px 10px 12px 20px;display:flex;align-items:center;gap:8px}
 .card.month{box-sizing:border-box;padding:18px 10px 18px 20px;display:flex;gap:8px}
@@ -447,7 +447,7 @@ function CheckButton({ done, color, pop, label, onClick, top }) {
   </button>`;
 }
 
-function SwipeCard({ open, setOpen, enabled, name, onEdit, onDelete, className, style, children }) {
+function SwipeCard({ open, setOpen, enabled, name, onEdit, onDelete, onTap, className, style, children }) {
   const [dx, setDx] = useState(null);
   const d = useRef(null);
   const suppress = useRef(0);
@@ -485,7 +485,8 @@ function SwipeCard({ open, setOpen, enabled, name, onEdit, onDelete, className, 
     </div>`}
     <div className=${className}
       style=${Object.assign({}, style, { transform: 'translateX(' + Math.round(x) + 'px)', transition: dx != null ? 'none' : 'transform .55s cubic-bezier(.25,1.15,.4,1), background-color .5s ease' })}
-      onPointerDown=${down} onPointerMove=${move} onPointerUp=${up} onPointerCancel=${up} onPointerLeave=${up}>
+      onPointerDown=${down} onPointerMove=${move} onPointerUp=${up} onPointerCancel=${up} onPointerLeave=${up}
+      onClick=${e => { if (wasDrag()) return; if (onTap) onTap(e); }}>
       ${children(wasDrag)}
     </div>
   </div>`;
@@ -580,15 +581,20 @@ function Home(p) {
   });
   const avg = rows.length ? rows.reduce((a, r) => a + r.shown.p, 0) / rows.length : 0;
 
-  const nameBtn = (r, wasDrag, inner) => html`<button className="namebtn" aria-label=${'打開「' + r.h.name + '」'}
-    onClick=${() => { if (Date.now() < suppressUntil) return; if (wasDrag && wasDrag()) return; if (openId) { setOpenId(null); return; } openDetail(r.h.id); }}>${inner}</button>`;
+  const nameBtn = (r, wasDrag, inner) => html`<button className="namebtn" aria-label=${'打開「' + r.h.name + '」'}>${inner}</button>`;
+  const tapCard = r => e => {
+    if (e.target && e.target.closest && e.target.closest('.chk, .actions')) return;
+    if (Date.now() < suppressUntil) return;
+    if (openId) { setOpenId(null); return; }
+    openDetail(r.h.id);
+  };
   const check = (r, top) => html`<${CheckButton} done=${r.done} color=${r.h.color} pop=${r.done && lastTap === r.h.id} top=${top}
     label=${r.done ? r.h.name + '：今天已完成，點一下取消' : r.h.name + '：今天打卡'} onClick=${() => toggleToday(r.h)} />`;
 
   const card = r => {
     const h = r.h;
     const common = { key: h.id, open: openId === h.id, setOpen: o => setOpenId(o ? h.id : null), name: h.name,
-      onEdit: () => openForm('edit', h, 'home'), onDelete: () => askDelete(h.id) };
+      onEdit: () => openForm('edit', h, 'home'), onDelete: () => askDelete(h.id), onTap: tapCard(r) };
     if (view === 'main') return html`<${SwipeCard} ...${common} enabled=${true} className="card main">
       ${wasDrag => html`
         <div className="fill" style=${{ width: fillW(r.cur.p), background: h.color }}></div>
@@ -610,7 +616,7 @@ function Home(p) {
     // 7×5: days land by weekday; a 36th+ slot wraps into the empty start of the first row
     const cells = Array.from({ length: 35 }, () => ({ blank: true }));
     for (let dd = 1; dd <= r.shown.dim; dd++) { let pos = r.shown.lead + dd - 1; if (pos >= 35) pos -= 35; cells[pos] = { v: r.shown.stats[dd] }; }
-    return html`<div key=${h.id} className="card month">
+    return html`<div key=${h.id} className="card month" onClick=${tapCard(r)}>
       ${nameBtn(r, null, html`<span style=${{ display: 'flex', flexDirection: 'column', gap: '3px' }}><span className="hname">${h.name}</span><span className="freq">${freqText(freqOf(h))}</span></span><span className="pct">${pctStr(r.shown.p)}</span>`)}
       <div className="mg">${cells.map((c, i) => html`<div key=${i} className="cell" style=${c.blank ? {} : cellLook(h.color, c.v)}></div>`)}</div>
       ${check(r, true)}
