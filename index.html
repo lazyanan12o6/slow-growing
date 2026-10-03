@@ -212,12 +212,12 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
   right:max(24px,calc((100vw - 430px) / 2 + 24px));bottom:calc(28px + env(safe-area-inset-bottom,0px));box-shadow:0 6px 22px rgba(50,50,50,.08);z-index:5;transition:transform .2s ease,background-color .5s ease}
 .fab:active{transform:scale(.9)}
 .setlist{display:flex;flex-direction:column;gap:16px}
-.setrow{width:100%;min-height:70px;box-sizing:border-box;padding:16px 22px 16px 20px;border:none;border-radius:18px;background:var(--surface);color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;transition:transform .2s ease,background-color .5s ease}
+.setrow{width:100%;min-height:70px;box-sizing:border-box;padding:16px 28px 16px 20px;border:none;border-radius:18px;background:var(--surface);color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;transition:transform .2s ease,background-color .5s ease}
 button.setrow:active{transform:scale(.98)}
 .set-title{font-size:14px;font-weight:600;letter-spacing:.06em}
 .set-sub{font-size:9px;font-weight:500;letter-spacing:.1em;margin-top:5px;font-variant-numeric:tabular-nums}
 .set-sub.warn{color:var(--brand)}
-.set-icon{color:var(--brand);display:flex;width:32px;flex-shrink:0;justify-content:center}
+.set-icon{color:var(--brand);display:flex;width:32px;height:32px;flex-shrink:0;align-items:center;justify-content:center}
 .thanks{margin:8px 0 0;text-align:center;font-size:12px;letter-spacing:.1em;display:flex;align-items:center;justify-content:center;gap:8px}
 .thanks svg{width:15px;height:13px}
 .pill.brand{background:var(--brand);color:var(--on-brand)}
@@ -264,10 +264,10 @@ const ICONS = {
   cloudUp: '<path d="M7.2 18.5h9.9a4.1 4.1 0 0 0 .5-8.17 5.6 5.6 0 0 0-10.7 1.3 3.45 3.45 0 0 0 .3 6.87z"/><path d="M12 16.4v-5M9.9 13.4l2.1-2.1 2.1 2.1"/>',
   restore: '<path d="M3.8 12.4a8.3 8.3 0 1 0 2.45-5.9"/><path d="M3.8 3.6v4.2H8"/>'
 };
-function Icon({ name, size, width }) {
+function Icon({ name, size, width, vb }) {
   const s = size || 20;
   return html`<span aria-hidden="true" style=${{ display: 'flex' }} dangerouslySetInnerHTML=${{ __html:
-    '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (width || 1.7) + '" stroke-linecap="round" stroke-linejoin="round">' + ICONS[name] + '</svg>' }}></span>`;
+    '<svg width="' + s + '" height="' + s + '" viewBox="' + (vb || '0 0 24 24') + '" fill="none" stroke="currentColor" stroke-width="' + (width || 1.7) + '" stroke-linecap="round" stroke-linejoin="round">' + ICONS[name] + '</svg>' }}></span>`;
 }
 const LOGO = '<svg viewBox="0 0 62.746 53.366" aria-hidden="true"><path style="fill:var(--brand)" d="M34.037,53.365c-6.081-.072-12.311-3.075-17.261-6.491C8.953,41.476,1.818,33.924.251,24.024-1.134,15.279,3.323,6.826,11.036,2.939c6.831-3.443,14.92-1.006,19.523,5.069.471.622,1.386.571,1.784-.1C36.079,1.633,43.365-1.412,50.295.631c8.477,2.499,12.956,11.418,12.406,20.092-.49,7.728-4.246,14.883-9.063,20.671-5.009,6.018-11.394,12.068-19.602,11.971Z"/><g class="eyes-look"><g class="eyes-blink"><circle style="fill:var(--bg);transition:fill .5s ease" cx="29.051" cy="28.769" r="3.686"/><circle style="fill:var(--bg);transition:fill .5s ease" cx="43.852" cy="28.769" r="3.686"/></g></g></svg>';
 
@@ -722,11 +722,11 @@ function Settings({ store, onClose, onBackup, onPickRestore, toggleTheme }) {
     <div className="setlist">
       <button className="setrow" onClick=${onBackup}>
         <span><span className="set-title">iCloud 備份</span><span className=${'set-sub' + (stale ? ' warn' : '')} style=${{ display: 'block' }}>${last ? fmtDate(last) : '還沒備份過'}</span></span>
-        <span className="set-icon"><${Icon} name=${stale ? 'cloudUp' : 'cloudOk'} size=${30} width=${1.12} /></span>
+        <span className="set-icon"><${Icon} name=${stale ? 'cloudUp' : 'cloudOk'} size=${32} vb="3.15 2.4 18.65 18.65" width=${0.82} /></span>
       </button>
       <button className="setrow" onClick=${onPickRestore}>
         <span><span className="set-title">從備份還原</span><span className="set-sub" style=${{ display: 'block' }}>選擇之前存的備份檔</span></span>
-        <span className="set-icon"><${Icon} name="restore" size=${30} width=${1.12} /></span>
+        <span className="set-icon"><${Icon} name="restore" size=${32} vb="1.15 1.2 21.9 21.9" width=${0.96} /></span>
       </button>
       <div className="setrow">
         <span><span className="set-title">版本維護 ${VERSION.label}</span><span className="set-sub" style=${{ display: 'block' }}>${VERSION.date}</span></span>
