@@ -231,7 +231,7 @@ button.setrow:active{transform:scale(.98)}
 .set-icon{color:var(--brand);display:flex;width:32px;height:32px;flex-shrink:0;align-items:center;justify-content:center}
 .thanks{margin:8px 0 0;text-align:center;font-size:12px;letter-spacing:.1em;display:flex;align-items:center;justify-content:center;gap:8px}
 .thanks svg{width:15px;height:13px}
-.pill.brand{background:var(--brand);color:var(--on-brand)}
+.pill.primary{background:var(--brand);color:var(--on-brand)}
 
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
@@ -984,7 +984,7 @@ function App() {
         <div className="dlg-text">備份日期 ${pendingRestore.exportedAt ? fmtDate(pendingRestore.exportedAt) : '不明'}，有 ${pendingRestore.habits.length} 個習慣。目前手機上的紀錄會被這份備份取代。</div>
         <div className="dlg-btns">
           <button className="pill press" onClick=${() => setPendingRestore(null)}>取消</button>
-          <button className="pill brand press" onClick=${() => { store.restore(pendingRestore); setPendingRestore(null); go('home', null, 'in-l'); showToast('還原好了'); }}>還原</button>
+          <button className="pill primary press" onClick=${() => { store.restore(pendingRestore); setPendingRestore(null); go('home', null, 'in-l'); showToast('還原好了'); }}>還原</button>
         </div>
       </div>
     </div>`}
