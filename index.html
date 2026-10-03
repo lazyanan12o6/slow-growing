@@ -220,6 +220,8 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 .fab{position:fixed;width:67px;height:67px;border-radius:50%;border:none;padding:0;background:var(--surface);color:var(--ink);display:flex;align-items:center;justify-content:center;
   right:max(24px,calc((100vw - 430px) / 2 + 24px));bottom:calc(28px + env(safe-area-inset-bottom,0px));box-shadow:0 6px 22px rgba(50,50,50,.08);z-index:5;transition:transform .2s ease,background-color .5s ease}
 .fab:active{transform:scale(.9)}
+.fab-in{animation:fabIn .45s cubic-bezier(.3,1.35,.5,1)}
+@keyframes fabIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
 .setlist{display:flex;flex-direction:column;gap:16px}
 .setrow{width:100%;min-height:70px;box-sizing:border-box;padding:16px 28px 16px 20px;border:none;border-radius:18px;background:var(--surface);color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;transition:transform .2s ease,background-color .5s ease}
 button.setrow:active{transform:scale(.98)}
@@ -658,7 +660,6 @@ function Home(p) {
         onPointerDown=${e => startPress(e, r.h.id)} onPointerMove=${movePress} onPointerUp=${endPress} onPointerCancel=${endPress}>${card(r)}</div>`)}
     </div>
 
-    <button className="fab" aria-label="新增習慣" onClick=${() => openForm('add')}><${Icon} name="plus" size=${26} width=${1.5} /></button>
   </div>`;
 }
 
@@ -966,6 +967,7 @@ function App() {
 
   return html`<${React.Fragment}>
     <div key=${page.name + (page.id || '')} className=${page.anim}>${body}</div>
+    ${page.name === 'home' && html`<button className="fab fab-in" aria-label="新增習慣" onClick=${() => openForm('add')}><${Icon} name="plus" size=${26} width=${1.5} /></button>`}
     ${confirmH && html`<div className="overlay fade-in" onClick=${e => { if (e.target === e.currentTarget) setConfirmId(null); }}>
       <div className="dialog pop-in" role="dialog" aria-modal="true" aria-labelledby="dlg-t">
         <div id="dlg-t" className="dlg-title">刪除「${confirmH.name}」？</div>
