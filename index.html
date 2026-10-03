@@ -80,13 +80,13 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 .monthnav{margin-inline:-24px;display:grid;grid-template-columns:1fr 70% 1fr;align-items:center}
 .arrow{width:44px;height:44px;border:none;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;color:var(--ring);justify-self:center}
 .arrow:disabled{opacity:.35}
-.capsule{background:var(--surface);border-radius:999px;padding:29px 12px;overflow:hidden;transition:background-color .5s ease}
-.capsule-in{display:flex;flex-direction:column;align-items:center;gap:3px;white-space:nowrap}
+.capsule{background:var(--surface);border-radius:999px;padding:27px 12px;overflow:hidden;transition:background-color .5s ease}
+.capsule-in{display:flex;flex-direction:column;align-items:center;gap:7px;white-space:nowrap}
 .cap-month{font-size:14px;font-weight:600;letter-spacing:.1em;line-height:1}
 .cap-month.titlebtn{min-height:0;padding:10px 12px;margin:-10px 0}
 .cap-row{display:flex;align-items:baseline;gap:10px;line-height:1}
 .cap-label{font-size:13px;font-weight:600;letter-spacing:.1em}
-.cap-pct{font-family:var(--f-num);font-size:26px;font-weight:500;letter-spacing:.02em;color:var(--brand)}
+.cap-pct{font-family:var(--f-num);font-size:26px;font-weight:500;letter-spacing:.02em;color:var(--brand);position:relative;top:4px}
 
 /* cards */
 .list{display:flex;flex-direction:column;gap:16px}
@@ -166,7 +166,8 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 .cal-head{display:flex;align-items:center;justify-content:space-between}
 .cal-title{font-size:14px;font-weight:600;letter-spacing:.1em}
 .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));row-gap:8px;justify-items:center}
-.cal-l{font-size:11px;font-weight:500;color:var(--muted);padding-block:6px 2px}
+.cal-l{font-size:11px;font-weight:500;color:var(--muted);padding-top:6px;line-height:1}
+.cal-labels{margin-bottom:7px}
 .day{width:38px;height:38px;box-sizing:border-box;border-radius:50%;border:1.5px solid transparent;padding:0;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:500;color:var(--ink);background:transparent;font-variant-numeric:tabular-nums;transition:background-color .45s ease,border-color .45s ease,transform .2s ease}
 .day:active:not(:disabled){transform:scale(.88)}
 .day:disabled{color:var(--disabled)}
@@ -709,7 +710,7 @@ function Detail({ h, store, today, dOff, shiftD, jumpD, calAnim, goHome, openFor
         <button className="arrow" aria-label="下個月" disabled=${dOff >= 0} onClick=${() => shiftD(1)}><${Icon} name="right" size=${18} width=${1.8} /></button>
       </div>
       <div key=${'g' + dOff} className=${calAnim}>
-        <div className="cal-grid">${DOW.map(l => html`<div key=${l} className="cal-l">${l}</div>`)}</div>
+        <div className="cal-grid cal-labels">${DOW.map(l => html`<div key=${l} className="cal-l">${l}</div>`)}</div>
         <div className="cal-grid">${days}</div>
       </div>
     </section>
