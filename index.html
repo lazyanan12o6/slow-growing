@@ -23,28 +23,28 @@
 :root{
   --bg:#eeeeeb; --surface:#ffffff; --ink:#323232; --muted:#75746e; --ring:#adaca5; --track:#eeeeeb;
   --brand:#5f94c4; --on-brand:#ffffff; --danger:#c9505b; --disabled:#bdbcb6; --scrim:rgba(50,50,50,.35);
-  --fill-op:1; --tick:#323232;
+  --fill-op:1; --tick:#323232; --ring-fill:#323232; --bg-clear:rgba(238,238,235,0);
   --f-ui:'Montserrat','PingFang TC','Noto Sans TC',system-ui,sans-serif;
   --f-num:'Poppins','Montserrat',system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#323232; --surface:#424242; --ink:#eeeeeb; --muted:#b3b2ab; --ring:#e3e2dc; --track:#363636;
-    --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; color-scheme:dark;
+    --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; --ring-fill:#e3e2dc; --bg-clear:rgba(50,50,50,0); color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#323232; --surface:#424242; --ink:#eeeeeb; --muted:#b3b2ab; --ring:#e3e2dc; --track:#363636;
-  --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; color-scheme:dark;
+  --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; --ring-fill:#e3e2dc; --bg-clear:rgba(50,50,50,0); color-scheme:dark;
 }
 /* the logo switch inside the app wins over the system setting */
 :root[data-app="light"]{
   --bg:#eeeeeb; --surface:#ffffff; --ink:#323232; --muted:#75746e; --ring:#adaca5; --track:#eeeeeb;
-  --danger:#c9505b; --disabled:#bdbcb6; --scrim:rgba(50,50,50,.35); --fill-op:1; color-scheme:light;
+  --danger:#c9505b; --disabled:#bdbcb6; --scrim:rgba(50,50,50,.35); --fill-op:1; --ring-fill:#323232; --bg-clear:rgba(238,238,235,0); color-scheme:light;
 }
 :root[data-app="dark"]{
   --bg:#323232; --surface:#424242; --ink:#eeeeeb; --muted:#b3b2ab; --ring:#e3e2dc; --track:#363636;
-  --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; color-scheme:dark;
+  --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; --ring-fill:#e3e2dc; --bg-clear:rgba(50,50,50,0); color-scheme:dark;
 }
 
 html,body{min-height:100%;margin:0}
@@ -122,7 +122,8 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 .chk:active,.press:active{transform:scale(.88)}
 .press{transition:transform .2s ease,background-color .5s ease}
 .chk.top{align-self:flex-start}
-.ck-empty{width:26px;height:26px;box-sizing:border-box;border-radius:50%;border:1.5px solid var(--ring);color:var(--ring);display:flex;align-items:center;justify-content:center}
+.ck-empty{width:26px;height:26px;box-sizing:border-box;border-radius:50%;border:1.5px solid var(--ring);color:var(--ring);display:flex;align-items:center;justify-content:center;transition:border-color .6s ease,color .6s ease}
+.chk.on-fill .ck-empty{border-color:var(--ring-fill);color:var(--ring-fill)}
 .ck-done{position:relative;width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--tick);transform:translateZ(0)}
 .ck-done .dot,.ck-done .ring{position:absolute;inset:0;border-radius:50%}
 .ck-done .ring{opacity:0}
@@ -216,7 +217,9 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 
 /* menu, floating add button, settings */
 .iconbtn{width:48px;height:48px;border:none;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;color:var(--ring)}
-.screen.home{padding-bottom:calc(130px + env(safe-area-inset-bottom,0px))}
+.screen.home{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+/* soft fade at the bottom so the add button always stands clear of the cards */
+.fade-bottom{position:fixed;left:0;right:0;bottom:0;height:calc(170px + env(safe-area-inset-bottom,0px));pointer-events:none;z-index:4;background:linear-gradient(to bottom,var(--bg-clear) 0%,var(--bg) 72%)}
 .fab{position:fixed;width:67px;height:67px;border-radius:50%;border:none;padding:0;background:var(--surface);color:var(--ink);display:flex;align-items:center;justify-content:center;
   right:max(24px,calc((100vw - 430px) / 2 + 24px));bottom:calc(28px + env(safe-area-inset-bottom,0px));box-shadow:0 6px 22px rgba(50,50,50,.08);z-index:5;transition:transform .2s ease,background-color .5s ease}
 .fab:active{transform:scale(.9)}
@@ -252,6 +255,8 @@ const html = htm.bind(React.createElement);
 
 /* ---------- constants ---------- */
 const REVEAL = 118;
+// the fill reaches the centre of the check ring at about this share (ring sits 32px in from the card's right edge)
+const RING_COVERED = 0.84;
 const PALETTE = [
   { color: '#96b8ea', label: '藍' }, { color: '#fce76d', label: '黃' },
   { color: '#ffcade', label: '粉' }, { color: '#ffce80', label: '橘' },
@@ -440,8 +445,8 @@ let suppressUntil = 0;
 document.addEventListener('touchmove', e => { if (REORDERING) e.preventDefault(); }, { passive: false });
 
 /* ---------- small pieces ---------- */
-function CheckButton({ done, color, pop, label, onClick, top }) {
-  return html`<button className=${'chk' + (top ? ' top' : '')} aria-label=${label} onClick=${onClick}>
+function CheckButton({ done, color, pop, label, onClick, top, onFill }) {
+  return html`<button className=${'chk' + (top ? ' top' : '') + (onFill ? ' on-fill' : '')} aria-label=${label} onClick=${onClick}>
     ${done
       ? html`<span className=${'ck-done' + (pop ? ' pop' : '')}>
           <span className="ring" style=${{ background: color }}></span>
@@ -593,7 +598,7 @@ function Home(p) {
     if (openId) { setOpenId(null); return; }
     openDetail(r.h.id);
   };
-  const check = (r, top) => html`<${CheckButton} done=${r.done} color=${r.h.color} pop=${r.done && lastTap === r.h.id} top=${top}
+  const check = (r, top, onFill) => html`<${CheckButton} done=${r.done} color=${r.h.color} pop=${r.done && lastTap === r.h.id} top=${top} onFill=${onFill}
     label=${r.done ? r.h.name + '：今天已完成，點一下取消' : r.h.name + '：今天打卡'} onClick=${() => toggleToday(r.h)} />`;
 
   const card = r => {
@@ -606,7 +611,7 @@ function Home(p) {
         <div className="row">
           ${nameBtn(r, wasDrag, html`<span className="hname">${h.name}</span><span className="freq">${freqText(freqOf(h))}</span>`)}
           <div className="pct">${pctStr(r.cur.p)}</div>
-          ${check(r)}
+          ${check(r, false, r.cur.p >= RING_COVERED)}
         </div>`}
     </${SwipeCard}>`;
     if (view === 'week') return html`<${SwipeCard} ...${common} enabled=${true} className="card week">
@@ -967,6 +972,7 @@ function App() {
 
   return html`<${React.Fragment}>
     <div key=${page.name + (page.id || '')} className=${page.anim}>${body}</div>
+    ${page.name === 'home' && html`<div className="fade-bottom" aria-hidden="true"></div>`}
     ${page.name === 'home' && html`<button className="fab fab-in" aria-label="新增習慣" onClick=${() => openForm('add')}><${Icon} name="plus" size=${26} width=${1.5} /></button>`}
     ${confirmH && html`<div className="overlay fade-in" onClick=${e => { if (e.target === e.currentTarget) setConfirmId(null); }}>
       <div className="dialog pop-in" role="dialog" aria-modal="true" aria-labelledby="dlg-t">
