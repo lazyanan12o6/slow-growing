@@ -857,7 +857,7 @@ function App() {
     try { file = new File([text], name, { type: 'application/json' }); } catch (e) {}
     try {
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Slow Growing 備份' });
+        await navigator.share({ files: [file] });
         store.markBackup(); showToast('備份好了');
         return;
       }
