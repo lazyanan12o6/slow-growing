@@ -160,6 +160,10 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 .sum-label{font-size:12px;font-weight:600;letter-spacing:.1em}
 .sum-pct{font-family:var(--f-num);font-size:40px;font-weight:400;letter-spacing:.02em;line-height:1;margin-top:6px}
 .chip{font-size:10px;font-weight:600;letter-spacing:.1em;padding:7px 12px;border-radius:999px}
+.sum-side{display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0}
+.due{font-size:8px;font-weight:500;letter-spacing:.1em;line-height:1;white-space:nowrap;color:var(--ink)}
+.due b{font-weight:700}
+.due.late{color:var(--muted)}
 .bar-track{height:10px;border-radius:999px;background:var(--track);overflow:hidden}
 .bar{height:100%;border-radius:999px;transition:width 1.5s cubic-bezier(.3,1,.4,1);animation:grow 1.8s cubic-bezier(.3,1,.4,1) backwards}
 .sum-count{font-size:12px;font-weight:500;letter-spacing:.08em;color:var(--muted)}
@@ -332,15 +336,27 @@ function startOf(h, logs) {
   });
   return st;
 }
+// first day of this month that counts toward the target, or dim + 1 if none:
+// the month the habit was created counts from the creation day (or an earlier backfilled check that month);
+// months before it count in full once anything has been checked that far back
+function firstCountedDay(h, y, m, dim, logs) {
+  const start = startOf(h, logs);
+  if (!start) return 1;
+  const ym = y * 12 + m, startYm = start.getFullYear() * 12 + start.getMonth();
+  if (ym < startYm) return dim + 1;
+  const created = h.created ? parseYmd(h.created) : null;
+  if (created && created.getFullYear() * 12 + created.getMonth() === ym) {
+    let first = created.getDate();
+    const mm = logs[ymKey(y, m)] || {}, pre = h.id + '|';
+    Object.keys(mm).forEach(k => { if (mm[k] === true && k.indexOf(pre) === 0) first = Math.min(first, +k.slice(pre.length)); });
+    return first;
+  }
+  return 1;
+}
 function monthInfo(h, y, m, logs, today) {
   const dim = new Date(y, m + 1, 0).getDate();
   const lead = (new Date(y, m, 1).getDay() + 6) % 7;
-  const start = startOf(h, logs);
-  let firstDay = 1;
-  if (start) {
-    if (start > new Date(y, m, dim)) firstDay = dim + 1;
-    else if (start.getFullYear() === y && start.getMonth() === m) firstDay = start.getDate();
-  }
+  const firstDay = firstCountedDay(h, y, m, dim, logs);
   const stats = [];
   for (let d = 1; d <= dim; d++) stats[d] = statusOf(h, new Date(y, m, d), logs, today);
   let doneDays = 0;
@@ -348,20 +364,12 @@ function monthInfo(h, y, m, logs, today) {
   const f = freqOf(h);
   let doneCount = 0, target = 0;
   if (firstDay <= dim) {
+    const span = dim - firstDay + 1;
+    let c = 0; for (let k = firstDay; k <= dim; k++) if (stats[k] === true) c++;
     if (f.type === 'day') {
-      // rhythm: each check keeps you "on rhythm" for that day and the next N-1 days;
-      // a check near the end of last month can carry into this one
-      let coverUntil = 0;
-      for (let k = f.n - 1; k >= 1; k--) {
-        const prev = new Date(y, m, firstDay - k);
-        if (start && prev < start) continue;
-        if (statusOf(h, prev, logs, today) === true) coverUntil = Math.max(coverUntil, firstDay - k + f.n - 1);
-      }
-      for (let d = firstDay; d <= dim; d++) {
-        if (stats[d] === true) coverUntil = Math.max(coverUntil, d + f.n - 1);
-        target++;
-        if (d <= coverUntil) doneCount++;
-      }
+      // every N days: this month asks for one check per N days
+      target = Math.ceil(span / f.n);
+      doneCount = Math.min(c, target);
     } else if (f.type === 'week') {
       // Monday–Sunday weeks; a partial week at the month's edge asks for a fair share
       let st = firstDay;
@@ -369,19 +377,34 @@ function monthInfo(h, y, m, logs, today) {
         const dow = (new Date(y, m, st).getDay() + 6) % 7;
         const en = Math.min(dim, st + 6 - dow);
         const t = Math.min(f.n, Math.ceil(f.n * (en - st + 1) / 7));
-        let c = 0; for (let k = st; k <= en; k++) if (stats[k] === true) c++;
-        target += t; doneCount += Math.min(c, t);
+        let wc = 0; for (let k = st; k <= en; k++) if (stats[k] === true) wc++;
+        target += t; doneCount += Math.min(wc, t);
         st = en + 1;
       }
     } else {
-      const span = dim - firstDay + 1;
       target = Math.min(f.n, Math.ceil(f.n * span / dim));
-      let c = 0; for (let k = firstDay; k <= dim; k++) if (stats[k] === true) c++;
       doneCount = Math.min(c, target);
     }
   }
   const p = target > 0 ? Math.min(doneCount / target, 1) : 0;
   return { y, m, dim, lead, stats, doneCount, doneDays, target, p, kind: f.type };
+}
+// for "every N days" habits: when the next check is due, counted from the latest check up to today
+function nextDue(h, logs, today) {
+  const f = freqOf(h);
+  if (f.type !== 'day') return null;
+  let last = null; const pre = h.id + '|';
+  Object.keys(logs).forEach(k => {
+    const mm = logs[k] || {}; const p = k.split('-');
+    Object.keys(mm).forEach(key => {
+      if (mm[key] !== true || key.indexOf(pre) !== 0) return;
+      const d = new Date(+p[0], +p[1] - 1, +key.slice(pre.length));
+      if (d <= today && (!last || d > last)) last = d;
+    });
+  });
+  if (!last) return 0;
+  const next = new Date(last.getFullYear(), last.getMonth(), last.getDate() + f.n);
+  return Math.round((next - today) / 86400000);
 }
 function cellLook(color, v) {
   if (v === true) return { background: color, borderColor: color };
@@ -391,7 +414,7 @@ function cellLook(color, v) {
 
 /* ---------- store: everything lives on this phone ---------- */
 const DATA_KEY = 'slow-growing:data';
-const VERSION = { label: '02 ver.', date: '2026.10.03' };
+const VERSION = { label: '03 ver.', date: '2026.10.05' };
 function seedData() {
   return { v: 1, theme: null, lastBackup: null, logs: {}, habits: [] };
 }
@@ -672,6 +695,7 @@ function Home(p) {
 function Detail({ h, store, today, dOff, shiftD, jumpD, calAnim, goHome, openForm }) {
   const base = new Date(today.getFullYear(), today.getMonth() + dOff, 1);
   const info = monthInfo(h, base.getFullYear(), base.getMonth(), store.logs, today);
+  const due = nextDue(h, store.logs, today);
   const sw = useRef(null);
   const swDown = e => { sw.current = { x: e.clientX, y: e.clientY }; };
   const swUp = e => {
@@ -704,10 +728,17 @@ function Detail({ h, store, today, dOff, shiftD, jumpD, calAnim, goHome, openFor
           <div className="sum-label">${dOff === 0 ? '本月完成度' : (info.m + 1) + '月完成度'}</div>
           <div className="sum-pct">${pctStr(info.p)}</div>
         </div>
-        <div className="chip" style=${{ background: h.color + '55' }}>${freqText(freqOf(h))}</div>
+        <div className="sum-side">
+          ${due != null && html`<div className=${'due' + (due < 0 ? ' late' : '')}>${
+            due < 0 ? (-due) + (due === -1 ? ' day late' : ' days late')
+            : due === 0 ? html`Next <b>Today</b>`
+            : due === 1 ? html`Next <b>Tomorrow</b>`
+            : 'Next in ' + due + ' days'}</div>`}
+          <div className="chip" style=${{ background: h.color + '55' }}>${freqText(freqOf(h))}</div>
+        </div>
       </div>
       <div className="bar-track"><div className="bar" style=${{ width: (info.p * 100).toFixed(2) + '%', background: h.color }}></div></div>
-      <div className="sum-count">${info.kind === 'day' ? '保持節奏 ' + info.doneCount + ' / ' + info.target + ' 天' : '達成 ' + info.doneCount + ' / ' + info.target + ' 次'} · 共打卡 ${info.doneDays} 天</div>
+      <div className="sum-count">達成 ${info.doneCount} / ${info.target} 次 · 共打卡 ${info.doneDays} 天</div>
     </section>
     <section className="panel cal" onPointerDown=${swDown} onPointerUp=${swUp}>
       <div className="cal-head">
