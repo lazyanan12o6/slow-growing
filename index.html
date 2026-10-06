@@ -505,6 +505,7 @@ function CheckButton({ done, color, pop, label, onClick, top, onFill }) {
 }
 
 function SwipeCard({ open, setOpen, enabled, name, onEdit, onDelete, onArchive, onTap, className, style, children }) {
+  const rMax = onArchive ? REVEAL_R : 0;
   const [dx, setDx] = useState(null);
   const d = useRef(null);
   const suppress = useRef(0);
@@ -524,7 +525,7 @@ function SwipeCard({ open, setOpen, enabled, name, onEdit, onDelete, onArchive, 
       else { if (Math.abs(my) > 10) d.current = null; return; }
     }
     let nx = s.base + mx;
-    if (nx > REVEAL_R) nx = REVEAL_R + (nx - REVEAL_R) * 0.3;
+    if (nx > rMax) nx = rMax + (nx - rMax) * (rMax ? 0.3 : 0.25);
     if (nx < -REVEAL) nx = -REVEAL + (nx + REVEAL) * 0.3;
     s.x = nx; setDx(nx);
   };
@@ -532,11 +533,11 @@ function SwipeCard({ open, setOpen, enabled, name, onEdit, onDelete, onArchive, 
     const s = d.current; d.current = null;
     if (!s || !s.active) return;
     suppress.current = Date.now();
-    setDx(null); setOpen(s.x < -REVEAL / 2 ? 'L' : s.x > REVEAL_R / 2 ? 'R' : null);
+    setDx(null); setOpen(s.x < -REVEAL / 2 ? 'L' : rMax && s.x > rMax / 2 ? 'R' : null);
   };
   const wasDrag = () => Date.now() - suppress.current < 350;
   return html`<div className="swipe">
-    ${enabled && html`<div className="actions-l" style=${{ visibility: x > 4 ? 'visible' : 'hidden', opacity: Math.min(1, x / 56) }}>
+    ${enabled && onArchive && html`<div className="actions-l" style=${{ visibility: x > 4 ? 'visible' : 'hidden', opacity: Math.min(1, x / 56) }}>
       <button className="round sm press" aria-label=${'收起「' + name + '」'} onClick=${onArchive}><${Icon} name="archive" /></button>
     </div>`}
     ${enabled && html`<div className="actions" style=${{ visibility: x < -4 ? 'visible' : 'hidden', opacity: Math.min(1, -x / 90) }}>
@@ -710,7 +711,7 @@ function Home(p) {
     </div>`}
 
     ${habits === null && html`<div className="empty">正在讀取你的習慣…</div>`}
-    ${habits && habits.length === 0 && html`<div className="empty">還沒有習慣喔<br />按右下角的 ＋ 新增一個吧</div>`}
+    ${habits && habits.length === 0 && html`<div className="empty">還沒有習慣哦<br />按右下角的 ＋ 新增一個吧</div>`}
 
     <div key=${view + (view === 'month' ? monthOff : '')} ref=${listRef} className=${'list ' + listAnim} onPointerDown=${swDown} onPointerUp=${swUp}>
       ${rows.map((r, i) => html`<div key=${r.h.id} data-id=${r.h.id} className="row-wrap" style=${rowStyle(i, r.h.id)}
@@ -885,8 +886,9 @@ function Settings({ store, onClose, onBackup, onPickRestore, toggleTheme, onArch
 }
 
 /* ---------- put-away habits ---------- */
-function Archived({ store, onClose, toggleTheme, openDetail, unarchive }) {
+function Archived({ store, onClose, toggleTheme, openDetail, askUnarchive, openForm, askDelete }) {
   const list = (store.habits || []).filter(h => h.archived);
+  const [openId, setOpenId] = useState(null);
   return html`<div className="screen tight">
     <header className="top" style=${{ marginBottom: '8px' }}>
       <div className="brand">
@@ -897,10 +899,18 @@ function Archived({ store, onClose, toggleTheme, openDetail, unarchive }) {
     </header>
     ${list.length === 0 && html`<div className="empty">還沒有習慣被收起來哦</div>`}
     <div className="list">
-      ${list.map(h => html`<div key=${h.id} className="card arc" style=${{ '--c': h.color }} onClick=${e => { if (e.target.closest('.arc-add')) return; openDetail(h.id, 'archived'); }}>
-        <button className="namebtn" aria-label=${'打開「' + h.name + '」'}><span className="hname">${h.name}</span><span className="freq">${freqText(freqOf(h))}</span></button>
-        <button className="arc-add press" aria-label=${'把「' + h.name + '」加回來'} onClick=${() => unarchive(h.id)}><${Icon} name="plus" size=${26} width=${1.5} /></button>
-      </div>`)}
+      ${list.map(h => html`<${SwipeCard} key=${h.id} enabled=${true} name=${h.name} className="card arc" style=${{ '--c': h.color }}
+        open=${openId === h.id ? 'L' : false} setOpen=${o => setOpenId(o ? h.id : null)}
+        onEdit=${() => openForm('edit', h, 'archived')} onDelete=${() => { setOpenId(null); askDelete(h.id); }}
+        onTap=${e => {
+          if (e.target && e.target.closest && e.target.closest('.arc-add, .actions')) return;
+          if (openId) { setOpenId(null); return; }
+          openDetail(h.id, 'archived');
+        }}>
+        ${() => html`
+          <button className="namebtn" aria-label=${'打開「' + h.name + '」'}><span className="hname">${h.name}</span><span className="freq">${freqText(freqOf(h))}</span></button>
+          <button className="arc-add press" aria-label=${'把「' + h.name + '」加回來'} onClick=${e => { e.stopPropagation(); askUnarchive(h.id); }}><${Icon} name="plus" size=${26} width=${1.5} /></button>`}
+      </${SwipeCard}>`)}
     </div>
   </div>`;
 }
@@ -926,6 +936,7 @@ function App() {
   const [form, setForm] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
   const [archiveId, setArchiveId] = useState(null);
+  const [unarchiveId, setUnarchiveId] = useState(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -1027,6 +1038,11 @@ function App() {
     }));
     showToast('把「' + h.name + '」加回來了');
   };
+  const doUnarchive = () => {
+    const id = unarchiveId; setUnarchiveId(null);
+    unarchive(id);
+    if (page.name === 'form' && form && form.id === id) setForm(Object.assign({}, form, { archived: false }));
+  };
   const openForm = (mode, h, returnTo) => {
     setForm(mode === 'edit'
       ? Object.assign({ mode: 'edit', id: h.id, name: h.name, color: h.color, archived: !!h.archived, returnTo: returnTo || 'home', from: page.from }, freqOf(h))
@@ -1035,6 +1051,7 @@ function App() {
   };
   const closeForm = () => {
     if (form && form.mode === 'edit' && form.returnTo === 'detail') setPage({ name: 'detail', id: form.id, anim: 'in-l', from: form.from || 'home' });
+    else if (form && form.returnTo === 'archived') go('archived', null, 'in-l');
     else go('home', null, 'in-l');
   };
   const saveForm = () => {
@@ -1056,7 +1073,8 @@ function App() {
     const h = find(confirmId); if (!h) { setConfirmId(null); return; }
     store.saveHabits(habits.filter(x => x.id !== h.id));
     setConfirmId(null);
-    if (page.name !== 'home') go(form && form.from === 'archived' ? 'archived' : 'home', null, 'in-l');
+    if (page.name === 'form') go(form && (form.from === 'archived' || form.returnTo === 'archived') ? 'archived' : 'home', null, 'in-l');
+    else if (page.name === 'detail') go(page.from === 'archived' ? 'archived' : 'home', null, 'in-l');
     showToast('已刪除「' + h.name + '」');
   };
   const toggleTheme = () => {
@@ -1074,10 +1092,11 @@ function App() {
     body = html`<${Settings} store=${store} onClose=${() => go('home', null, page.from === 'archived' ? 'in-l' : 'in-l')} onBackup=${doBackup} onPickRestore=${pickRestore} toggleTheme=${toggleTheme}
       onArchived=${() => go('archived', null, 'in-r')} />`;
   } else if (page.name === 'archived') {
-    body = html`<${Archived} store=${store} onClose=${() => go('settings', null, 'in-l')} toggleTheme=${toggleTheme} openDetail=${openDetail} unarchive=${unarchive} />`;
+    body = html`<${Archived} store=${store} onClose=${() => go('settings', null, 'in-l')} toggleTheme=${toggleTheme} openDetail=${openDetail}
+      askUnarchive=${id => setUnarchiveId(id)} openForm=${openForm} askDelete=${id => setConfirmId(id)} />`;
   } else if (page.name === 'form' && form) {
     body = html`<${Form} form=${form} setForm=${setForm} onClose=${closeForm} onSave=${saveForm} onDelete=${() => setConfirmId(form.id)}
-      onArchive=${() => setArchiveId(form.id)} onUnarchive=${() => { unarchive(form.id); setForm(Object.assign({}, form, { archived: false })); }} />`;
+      onArchive=${() => setArchiveId(form.id)} onUnarchive=${() => setUnarchiveId(form.id)} />`;
   } else if (detailH) {
     body = html`<${Detail} h=${detailH} store=${store} today=${today} dOff=${dOff} shiftD=${shiftD} jumpD=${jumpD} calAnim=${calAnim}
       goHome=${() => page.from === 'archived' ? go('archived', null, 'in-l') : go('home', null, 'in-l')} openForm=${openForm} />`;
@@ -1089,6 +1108,7 @@ function App() {
   }
   const confirmH = confirmId ? find(confirmId) : null;
   const archiveH = archiveId ? find(archiveId) : null;
+  const unarchiveH = unarchiveId ? find(unarchiveId) : null;
 
   return html`<${React.Fragment}>
     <div key=${page.name + (page.id || '')} className=${page.anim}>${body}</div>
@@ -1097,7 +1117,7 @@ function App() {
     ${confirmH && html`<div className="overlay fade-in" onClick=${e => { if (e.target === e.currentTarget) setConfirmId(null); }}>
       <div className="dialog pop-in" role="dialog" aria-modal="true" aria-labelledby="dlg-t">
         <div id="dlg-t" className="dlg-title">刪除「${confirmH.name}」？</div>
-        <div className="dlg-text">打卡紀錄會一起刪除，刪除後沒辦法復原。</div>
+        <div className="dlg-text">打卡紀錄會一起刪除，刪除後沒辦法復原</div>
         <div className="dlg-btns">
           <button className="pill press" style=${{ width: 'auto', height: '48px' }} onClick=${() => setConfirmId(null)}>取消</button>
           <button className="pill danger press" style=${{ width: 'auto', height: '48px' }} onClick=${doDelete}>刪除</button>
@@ -1114,10 +1134,19 @@ function App() {
         </div>
       </div>
     </div>`}
+    ${unarchiveH && html`<div className="overlay fade-in" onClick=${e => { if (e.target === e.currentTarget) setUnarchiveId(null); }}>
+      <div className="dialog pop-in" role="dialog" aria-modal="true" aria-labelledby="ua-t">
+        <div id="ua-t" className="dlg-title">要把「${unarchiveH.name}」加回來嗎？</div>
+        <div className="dlg-btns">
+          <button className="pill press" onClick=${() => setUnarchiveId(null)}>取消</button>
+          <button className="pill primary press" onClick=${doUnarchive}>加回來</button>
+        </div>
+      </div>
+    </div>`}
     ${pendingRestore && html`<div className="overlay fade-in" onClick=${e => { if (e.target === e.currentTarget) setPendingRestore(null); }}>
       <div className="dialog pop-in" role="dialog" aria-modal="true" aria-labelledby="rs-t">
         <div id="rs-t" className="dlg-title">用這份備份還原？</div>
-        <div className="dlg-text">備份日期 ${pendingRestore.exportedAt ? fmtDate(pendingRestore.exportedAt) : '不明'}，有 ${pendingRestore.habits.length} 個習慣。目前手機上的紀錄會被這份備份取代。</div>
+        <div className="dlg-text">備份日期 ${pendingRestore.exportedAt ? fmtDate(pendingRestore.exportedAt) : '不明'}，有 ${pendingRestore.habits.length} 個習慣，目前手機上的紀錄會被這份備份取代</div>
         <div className="dlg-btns">
           <button className="pill press" onClick=${() => setPendingRestore(null)}>取消</button>
           <button className="pill primary press" onClick=${() => { store.restore(pendingRestore); setPendingRestore(null); go('home', null, 'in-l'); showToast('還原好了'); }}>還原</button>
