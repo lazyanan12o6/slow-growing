@@ -330,7 +330,13 @@ const freqAt = (h, y, m) => {
   return { type: e.type, n: e.n };
 };
 // record a frequency change: it applies to the whole of this month and every month after
+// a change made in the month the habit was created just corrects the original setting: no history
 function withFreq(h, type, n, ym) {
+  if (h.created && ym <= h.created.slice(0, 7)) {
+    const nh = Object.assign({}, h, { type, n });
+    delete nh.unit; delete nh.hist;
+    return nh;
+  }
   const old = freqOf(h);
   let hist = (h.hist && h.hist.length ? h.hist : [{ from: '0000-01', type: old.type, n: old.n }])
     .filter(x => x.from < ym);
@@ -461,7 +467,7 @@ function cellLook(color, v, isToday) {
 /* ---------- store: everything lives on this phone ---------- */
 const DATA_KEY = 'slow-growing:data';
 // semantic version: big rework . new feature . small fix
-const VERSION = { label: '3.2.0', date: '2026.10.06' };
+const VERSION = { label: '3.2.1', date: '2026.10.06' };
 function seedData() {
   return { v: 1, theme: null, lastBackup: null, logs: {}, habits: [] };
 }
