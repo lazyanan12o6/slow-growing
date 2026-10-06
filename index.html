@@ -438,7 +438,8 @@ function cellLook(color, v, isToday) {
 
 /* ---------- store: everything lives on this phone ---------- */
 const DATA_KEY = 'slow-growing:data';
-const VERSION = { label: '04 ver.', date: '2026.10.06' };
+// semantic version: big rework . new feature . small fix
+const VERSION = { label: '3.1.1', date: '2026.10.06' };
 function seedData() {
   return { v: 1, theme: null, lastBackup: null, logs: {}, habits: [] };
 }
@@ -878,7 +879,7 @@ function Settings({ store, onClose, onBackup, onPickRestore, toggleTheme, onArch
         <span className="set-icon"><${Icon} name="archive" size=${32} vb="1 1 22 22" width=${1.0} /></span>
       </button>
       <div className="setrow">
-        <span><span className="set-title">版本維護 ${VERSION.label}</span><span className="set-sub" style=${{ display: 'block' }}>${VERSION.date}</span></span>
+        <span className="set-title">版本維護 Version ${VERSION.label}</span>
       </div>
     </div>
     <p className="thanks">特別感謝 <span style=${{ display: 'flex' }} dangerouslySetInnerHTML=${{ __html: HEART }}></span> 我的Claude阿澈</p>
