@@ -319,6 +319,28 @@ const freqOf = h => {
   if (h.unit === 'week') return h.n === 1 ? { type: 'week', n: 1 } : { type: 'month', n: Math.max(1, Math.round(4 / h.n)) };
   return { type: 'day', n: h.n || 1 };
 };
+// the setting in effect for a month: hist holds { from: 'YYYY-MM', type, n } entries, oldest first;
+// months before the first entry use the first one; no hist = the current setting for every month
+const freqAt = (h, y, m) => {
+  const hist = h.hist;
+  if (!hist || !hist.length) return freqOf(h);
+  const ym = ymKey(y, m);
+  let e = hist[0];
+  hist.forEach(x => { if (x.from <= ym) e = x; });
+  return { type: e.type, n: e.n };
+};
+// record a frequency change: it applies to the whole of this month and every month after
+function withFreq(h, type, n, ym) {
+  const old = freqOf(h);
+  let hist = (h.hist && h.hist.length ? h.hist : [{ from: '0000-01', type: old.type, n: old.n }])
+    .filter(x => x.from < ym);
+  const prev = hist[hist.length - 1];
+  if (!prev || prev.type !== type || prev.n !== n) hist = hist.concat([{ from: ym, type, n }]);
+  const nh = Object.assign({}, h, { type, n });
+  delete nh.unit;
+  if (hist.length > 1) nh.hist = hist; else delete nh.hist;
+  return nh;
+}
 const freqText = f => f.type === 'week' ? f.n + 'x a week' : f.type === 'month' ? f.n + 'x a month' : 'every ' + f.n + (f.n === 1 ? ' day' : ' days');
 const pctStr = p => Math.round(p * 100) + '%';
 const fillW = p => 'calc(' + p.toFixed(4) + ' * (100% + 30px))';
@@ -380,7 +402,7 @@ function monthInfo(h, y, m, logs, today) {
   for (let d = 1; d <= dim; d++) stats[d] = statusOf(h, new Date(y, m, d), logs, today);
   let doneDays = 0;
   for (let d = 1; d <= dim; d++) if (stats[d] === true) doneDays++;
-  const f = freqOf(h);
+  const f = freqAt(h, y, m);
   let doneCount = 0, target = 0;
   if (firstDay <= dim) {
     const act = [];
@@ -439,7 +461,7 @@ function cellLook(color, v, isToday) {
 /* ---------- store: everything lives on this phone ---------- */
 const DATA_KEY = 'slow-growing:data';
 // semantic version: big rework . new feature . small fix
-const VERSION = { label: '3.1.1', date: '2026.10.06' };
+const VERSION = { label: '3.2.0', date: '2026.10.06' };
 function seedData() {
   return { v: 1, theme: null, lastBackup: null, logs: {}, habits: [] };
 }
@@ -681,7 +703,7 @@ function Home(p) {
     const cells = Array.from({ length: 35 }, () => ({ blank: true }));
     for (let dd = 1; dd <= r.shown.dim; dd++) { let pos = r.shown.lead + dd - 1; if (pos >= 35) pos -= 35; cells[pos] = { v: r.shown.stats[dd], t: r.shown.y === today.getFullYear() && r.shown.m === today.getMonth() && dd === today.getDate() }; }
     return html`<div key=${h.id} className="card month" onClick=${tapCard(r)}>
-      ${nameBtn(r, null, html`<span style=${{ display: 'flex', flexDirection: 'column', gap: '3px' }}><span className="hname">${h.name}</span><span className="freq">${freqText(freqOf(h))}</span></span><span className="pct">${pctStr(r.shown.p)}</span>`)}
+      ${nameBtn(r, null, html`<span style=${{ display: 'flex', flexDirection: 'column', gap: '3px' }}><span className="hname">${h.name}</span><span className="freq">${freqText(freqAt(h, r.shown.y, r.shown.m))}</span></span><span className="pct">${pctStr(r.shown.p)}</span>`)}
       <div className="mg">${cells.map((c, i) => html`<div key=${i} className="cell" style=${c.blank ? {} : cellLook(h.color, c.v, c.t)}></div>`)}</div>
       ${check(r, true)}
     </div>`;
@@ -765,7 +787,7 @@ function Detail({ h, store, today, dOff, shiftD, jumpD, calAnim, goHome, openFor
             : due === 0 ? html`Next <b>Today</b>`
             : due === 1 ? html`Next <b>Tomorrow</b>`
             : 'Next in ' + due + ' days'}</div>`}
-          <div className="chip" style=${{ background: h.color + '55' }}>${freqText(freqOf(h))}</div>
+          <div className="chip" style=${{ background: h.color + '55' }}>${freqText(freqAt(h, info.y, info.m))}</div>
         </div>
       </div>
       <div className="bar-track"><div className="bar" style=${{ width: (info.p * 100).toFixed(2) + '%', background: h.color }}></div></div>
@@ -1060,9 +1082,7 @@ function App() {
     if (form.mode === 'edit') {
       store.saveHabits(habits.map(h => {
         if (h.id !== form.id) return h;
-        const nh = Object.assign({}, h, { name, type: form.type, n: form.n, color: form.color });
-        delete nh.unit;
-        return nh;
+        return Object.assign(withFreq(h, form.type, form.n, ymd(today).slice(0, 7)), { name, color: form.color });
       }));
     } else {
       store.saveHabits(habits.concat([{ id: 'h' + Date.now().toString(36), name, type: form.type, n: form.n, color: form.color, created: ymd(today) }]));
