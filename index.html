@@ -93,6 +93,7 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 .row-wrap{-webkit-touch-callout:none;will-change:transform}
 .swipe{position:relative}
 .actions{position:absolute;right:2px;top:0;bottom:0;display:flex;align-items:center;gap:10px}
+.actions-l{position:absolute;left:2px;top:0;bottom:0;display:flex;align-items:center}
 .card{cursor:pointer;position:relative;background:var(--surface);border-radius:18px;touch-action:pan-y;transition:background-color .5s ease}
 .card.main{height:70px;overflow:hidden}
 .card.week{min-height:70px;box-sizing:border-box;padding:12px 10px 12px 20px;display:flex;align-items:center;gap:8px}
@@ -206,6 +207,11 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 .sw.on span{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink)}
 .sw input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;padding:0;cursor:pointer}
 .preview-cap{text-align:center;font-size:11px;font-weight:500;letter-spacing:.08em;color:var(--muted);margin-top:-14px}
+.form-acts{display:flex;justify-content:center;gap:56px;margin-top:22px}
+.fa{border:none;background:transparent;padding:0;display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--ink);-webkit-tap-highlight-color:transparent}
+.fa:active .round{transform:scale(.9)}
+.fa .round{transition:transform .2s ease,background-color .5s ease}
+.fa-l{font-size:12px;font-weight:500;letter-spacing:.1em;color:var(--muted)}
 .textbtn{align-self:center;height:44px;padding:0 20px;border:none;background:transparent;color:var(--danger);font-size:14px;font-weight:600;letter-spacing:.1em}
 
 /* misc */
@@ -230,6 +236,10 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 .fab:active{transform:scale(.9)}
 .fab-in{animation:fabIn .45s cubic-bezier(.3,1.35,.5,1)}
 @keyframes fabIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+.card.arc{min-height:70px;box-sizing:border-box;padding:0 12px 0 36px;display:flex;align-items:center;gap:8px;overflow:hidden}
+.card.arc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:16px;background:var(--c)}
+.card.arc .namebtn{flex:1;min-height:70px}
+.arc-add{width:44px;height:44px;flex-shrink:0;border:none;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;color:var(--ink)}
 .setlist{display:flex;flex-direction:column;gap:16px}
 .setrow{width:100%;min-height:70px;box-sizing:border-box;padding:16px 28px 16px 20px;border:none;border-radius:18px;background:var(--surface);color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;transition:transform .2s ease,background-color .5s ease}
 button.setrow:active{transform:scale(.98)}
@@ -260,6 +270,7 @@ const html = htm.bind(React.createElement);
 
 /* ---------- constants ---------- */
 const REVEAL = 118;
+const REVEAL_R = 64;
 // the fill reaches the centre of the check ring at about this share (ring sits 32px in from the card's right edge)
 const RING_COVERED = 0.84;
 const PALETTE = [
@@ -283,7 +294,8 @@ const ICONS = {
   menu: '<path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/>',
   cloudOk: '<path d="M7.2 18.5h9.9a4.1 4.1 0 0 0 .5-8.17 5.6 5.6 0 0 0-10.7 1.3 3.45 3.45 0 0 0 .3 6.87z"/><path d="M9.6 14.2l1.9 1.9 3.6-3.6"/>',
   cloudUp: '<path d="M7.2 18.5h9.9a4.1 4.1 0 0 0 .5-8.17 5.6 5.6 0 0 0-10.7 1.3 3.45 3.45 0 0 0 .3 6.87z"/><path d="M12 16.4v-5M9.9 13.4l2.1-2.1 2.1 2.1"/>',
-  restore: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>'
+  restore: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  archive: '<rect x="3.5" y="4.5" width="17" height="4" rx="1"/><path d="M5 8.5v10.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.5"/><path d="M10 12.5h4"/>'
 };
 function Icon({ name, size, width, vb }) {
   const s = size || 20;
@@ -340,6 +352,12 @@ function startOf(h, logs) {
 // first day of this month that counts toward the target, or dim + 1 if none:
 // the month the habit was created counts from the creation day (or an earlier backfilled check that month);
 // months before it count in full once anything has been checked that far back
+// days the habit was put away ("收起來") don't count toward its targets
+function pausedOn(h, date) {
+  const k = ymd(date);
+  if (h.archived && k >= h.archived) return true;
+  return (h.pauses || []).some(pr => k >= pr[0] && k < pr[1]);
+}
 function firstCountedDay(h, y, m, dim, logs) {
   const start = startOf(h, logs);
   if (!start) return 1;
@@ -365,25 +383,29 @@ function monthInfo(h, y, m, logs, today) {
   const f = freqOf(h);
   let doneCount = 0, target = 0;
   if (firstDay <= dim) {
-    const span = dim - firstDay + 1;
-    let c = 0; for (let k = firstDay; k <= dim; k++) if (stats[k] === true) c++;
+    const act = [];
+    let actN = 0, c = 0;
+    for (let d = 1; d <= dim; d++) {
+      act[d] = d >= firstDay && !pausedOn(h, new Date(y, m, d));
+      if (act[d]) { actN++; if (stats[d] === true) c++; }
+    }
     if (f.type === 'day') {
-      // every N days: this month asks for one check per N days
-      target = Math.ceil(span / f.n);
+      // every N days: one check per N counted days
+      target = Math.ceil(actN / f.n);
       doneCount = Math.min(c, target);
     } else if (f.type === 'week') {
-      // Monday–Sunday weeks; a partial week at the month's edge asks for a fair share
-      let st = firstDay;
+      // Monday–Sunday weeks; a partial week asks for a fair share
+      let st = 1;
       while (st <= dim) {
         const dow = (new Date(y, m, st).getDay() + 6) % 7;
         const en = Math.min(dim, st + 6 - dow);
-        const t = Math.min(f.n, Math.ceil(f.n * (en - st + 1) / 7));
-        let wc = 0; for (let k = st; k <= en; k++) if (stats[k] === true) wc++;
-        target += t; doneCount += Math.min(wc, t);
+        let wa = 0, wc = 0;
+        for (let k = st; k <= en; k++) if (act[k]) { wa++; if (stats[k] === true) wc++; }
+        if (wa > 0) { const t = Math.min(f.n, Math.ceil(f.n * wa / 7)); target += t; doneCount += Math.min(wc, t); }
         st = en + 1;
       }
-    } else {
-      target = Math.min(f.n, Math.ceil(f.n * span / dim));
+    } else if (actN > 0) {
+      target = Math.min(f.n, Math.ceil(f.n * actN / dim));
       doneCount = Math.min(c, target);
     }
   }
@@ -416,7 +438,7 @@ function cellLook(color, v, isToday) {
 
 /* ---------- store: everything lives on this phone ---------- */
 const DATA_KEY = 'slow-growing:data';
-const VERSION = { label: '03 ver.', date: '2026.10.05' };
+const VERSION = { label: '04 ver.', date: '2026.10.06' };
 function seedData() {
   return { v: 1, theme: null, lastBackup: null, logs: {}, habits: [] };
 }
@@ -482,11 +504,11 @@ function CheckButton({ done, color, pop, label, onClick, top, onFill }) {
   </button>`;
 }
 
-function SwipeCard({ open, setOpen, enabled, name, onEdit, onDelete, onTap, className, style, children }) {
+function SwipeCard({ open, setOpen, enabled, name, onEdit, onDelete, onArchive, onTap, className, style, children }) {
   const [dx, setDx] = useState(null);
   const d = useRef(null);
   const suppress = useRef(0);
-  const base = open ? -REVEAL : 0;
+  const base = open === 'L' ? -REVEAL : open === 'R' ? REVEAL_R : 0;
   const x = dx != null ? dx : base;
   const down = e => {
     if (!enabled || REORDERING) return;
@@ -502,7 +524,7 @@ function SwipeCard({ open, setOpen, enabled, name, onEdit, onDelete, onTap, clas
       else { if (Math.abs(my) > 10) d.current = null; return; }
     }
     let nx = s.base + mx;
-    if (nx > 0) nx = nx * 0.25;
+    if (nx > REVEAL_R) nx = REVEAL_R + (nx - REVEAL_R) * 0.3;
     if (nx < -REVEAL) nx = -REVEAL + (nx + REVEAL) * 0.3;
     s.x = nx; setDx(nx);
   };
@@ -510,10 +532,13 @@ function SwipeCard({ open, setOpen, enabled, name, onEdit, onDelete, onTap, clas
     const s = d.current; d.current = null;
     if (!s || !s.active) return;
     suppress.current = Date.now();
-    setDx(null); setOpen(s.x < -REVEAL / 2);
+    setDx(null); setOpen(s.x < -REVEAL / 2 ? 'L' : s.x > REVEAL_R / 2 ? 'R' : null);
   };
   const wasDrag = () => Date.now() - suppress.current < 350;
   return html`<div className="swipe">
+    ${enabled && html`<div className="actions-l" style=${{ visibility: x > 4 ? 'visible' : 'hidden', opacity: Math.min(1, x / 56) }}>
+      <button className="round sm press" aria-label=${'收起「' + name + '」'} onClick=${onArchive}><${Icon} name="archive" /></button>
+    </div>`}
     ${enabled && html`<div className="actions" style=${{ visibility: x < -4 ? 'visible' : 'hidden', opacity: Math.min(1, -x / 90) }}>
       <button className="round sm press" aria-label=${'編輯「' + name + '」'} onClick=${onEdit}><${Icon} name="pencil" /></button>
       <button className="round sm press danger" aria-label=${'刪除「' + name + '」'} onClick=${onDelete}><${Icon} name="trash" /></button>
@@ -529,8 +554,8 @@ function SwipeCard({ open, setOpen, enabled, name, onEdit, onDelete, onTap, clas
 
 /* ---------- home ---------- */
 function Home(p) {
-  const { store, today, view, setView, listAnim, monthOff, shiftMonth, openId, setOpenId, lastTap, toggleToday, openDetail, openForm, askDelete, toggleTheme, openSettings, jumpMonth } = p;
-  const habits = store.habits;
+  const { store, today, view, setView, listAnim, monthOff, shiftMonth, openId, setOpenId, lastTap, toggleToday, openDetail, openForm, askDelete, askArchive, toggleTheme, openSettings, jumpMonth } = p;
+  const habits = store.habits ? store.habits.filter(h => !h.archived) : null;
   const sw = useRef(null);
   const listRef = useRef(null);
   const [drag, setDrag] = useState(null);
@@ -568,7 +593,8 @@ function Home(p) {
       dragRef.current = null; REORDERING = false; suppressUntil = Date.now() + 450;
       if (st.to !== st.from) {
         const [moved] = list.splice(st.from, 1); list.splice(st.to, 0, moved);
-        setSettle(true); store.saveHabits(list);
+        let vi = 0; const full = store.habits.map(h => h.archived ? h : list[vi++]);
+        setSettle(true); store.saveHabits(full);
         requestAnimationFrame(() => requestAnimationFrame(() => setSettle(false)));
       }
       setDrag(null);
@@ -578,7 +604,7 @@ function Home(p) {
   };
   const startPress = (e, id) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    if (e.target && e.target.closest && e.target.closest('.chk, .actions')) return;
+    if (e.target && e.target.closest && e.target.closest('.chk, .actions, .actions-l')) return;
     if (lp.current) clearTimeout(lp.current.timer);
     const y0 = e.clientY;
     lp.current = { x0: e.clientX, y0, timer: setTimeout(() => { lp.current = null; beginDrag(id, y0); }, 450) };
@@ -618,18 +644,19 @@ function Home(p) {
 
   const nameBtn = (r, wasDrag, inner) => html`<button className="namebtn" aria-label=${'打開「' + r.h.name + '」'}>${inner}</button>`;
   const tapCard = r => e => {
-    if (e.target && e.target.closest && e.target.closest('.chk, .actions')) return;
+    if (e.target && e.target.closest && e.target.closest('.chk, .actions, .actions-l')) return;
     if (Date.now() < suppressUntil) return;
     if (openId) { setOpenId(null); return; }
-    openDetail(r.h.id);
+    openDetail(r.h.id, 'home');
   };
   const check = (r, top, onFill) => html`<${CheckButton} done=${r.done} color=${r.h.color} pop=${r.done && lastTap === r.h.id} top=${top} onFill=${onFill}
     label=${r.done ? r.h.name + '：今天已完成，點一下取消' : r.h.name + '：今天打卡'} onClick=${() => toggleToday(r.h)} />`;
 
   const card = r => {
     const h = r.h;
-    const common = { key: h.id, open: openId === h.id, setOpen: o => setOpenId(o ? h.id : null), name: h.name,
-      onEdit: () => openForm('edit', h, 'home'), onDelete: () => askDelete(h.id), onTap: tapCard(r) };
+    const common = { key: h.id, open: openId && openId.indexOf(h.id + ':') === 0 ? openId.slice(-1) : false,
+      setOpen: o => setOpenId(o ? h.id + ':' + o : null), name: h.name,
+      onEdit: () => openForm('edit', h, 'home'), onDelete: () => askDelete(h.id), onArchive: () => askArchive(h.id), onTap: tapCard(r) };
     if (view === 'main') return html`<${SwipeCard} ...${common} enabled=${true} className="card main">
       ${wasDrag => html`
         <div className="fill" style=${{ width: fillW(r.cur.p), background: h.color }}></div>
@@ -697,7 +724,7 @@ function Home(p) {
 function Detail({ h, store, today, dOff, shiftD, jumpD, calAnim, goHome, openForm }) {
   const base = new Date(today.getFullYear(), today.getMonth() + dOff, 1);
   const info = monthInfo(h, base.getFullYear(), base.getMonth(), store.logs, today);
-  const due = nextDue(h, store.logs, today);
+  const due = h.archived ? null : nextDue(h, store.logs, today);
   const sw = useRef(null);
   const swDown = e => { sw.current = { x: e.clientX, y: e.clientY }; };
   const swUp = e => {
@@ -757,7 +784,7 @@ function Detail({ h, store, today, dOff, shiftD, jumpD, calAnim, goHome, openFor
 }
 
 /* ---------- add / edit ---------- */
-function Form({ form, setForm, onClose, onSave, onDelete }) {
+function Form({ form, setForm, onClose, onSave, onDelete, onArchive, onUnarchive }) {
   const name = form.name || '';
   const trimmed = name.trim();
   const maxN = FREQ_MAX[form.type] || 30;
@@ -814,13 +841,18 @@ function Form({ form, setForm, onClose, onSave, onDelete }) {
       <div className="row"><div className="namebtn" style=${{ flex: 1 }}><span className="hname">${trimmed || '習慣名稱'}</span><span className="freq">${freqText(form)}</span></div></div>
     </div>
     <div className="preview-cap">預覽</div>
-    ${form.mode === 'edit' && html`<button className="textbtn" onClick=${onDelete}>刪除這個習慣</button>`}
+    ${form.mode === 'edit' && html`<div className="form-acts">
+      ${form.archived
+        ? html`<button className="fa" onClick=${onUnarchive}><span className="round"><${Icon} name="plus" /></span><span className="fa-l">加回來</span></button>`
+        : html`<button className="fa" onClick=${onArchive}><span className="round"><${Icon} name="archive" /></span><span className="fa-l">收起來</span></button>`}
+      <button className="fa" onClick=${onDelete}><span className="round danger"><${Icon} name="trash" /></span><span className="fa-l">刪除</span></button>
+    </div>`}
   </div>`;
 }
 
 /* ---------- settings ---------- */
 const HEART = '<svg viewBox="0 0 62.746 53.366" aria-hidden="true"><path style="fill:var(--brand)" d="M34.037,53.365c-6.081-.072-12.311-3.075-17.261-6.491C8.953,41.476,1.818,33.924.251,24.024-1.134,15.279,3.323,6.826,11.036,2.939c6.831-3.443,14.92-1.006,19.523,5.069.471.622,1.386.571,1.784-.1C36.079,1.633,43.365-1.412,50.295.631c8.477,2.499,12.956,11.418,12.406,20.092-.49,7.728-4.246,14.883-9.063,20.671-5.009,6.018-11.394,12.068-19.602,11.971Z"/></svg>';
-function Settings({ store, onClose, onBackup, onPickRestore, toggleTheme }) {
+function Settings({ store, onClose, onBackup, onPickRestore, toggleTheme, onArchived }) {
   const last = store.lastBackup;
   const stale = !last || (Date.now() - new Date(last).getTime()) > 14 * 864e5;
   return html`<div className="screen tight">
@@ -840,11 +872,36 @@ function Settings({ store, onClose, onBackup, onPickRestore, toggleTheme }) {
         <span><span className="set-title">從備份還原</span><span className="set-sub" style=${{ display: 'block' }}>選擇之前存的備份檔</span></span>
         <span className="set-icon"><${Icon} name="restore" size=${32} vb="0.5 0.5 23 23" width=${1.0} /></span>
       </button>
+      <button className="setrow" onClick=${onArchived}>
+        <span className="set-title">收起來的習慣</span>
+        <span className="set-icon"><${Icon} name="archive" size=${32} vb="1 1 22 22" width=${1.0} /></span>
+      </button>
       <div className="setrow">
         <span><span className="set-title">版本維護 ${VERSION.label}</span><span className="set-sub" style=${{ display: 'block' }}>${VERSION.date}</span></span>
       </div>
     </div>
     <p className="thanks">特別感謝 <span style=${{ display: 'flex' }} dangerouslySetInnerHTML=${{ __html: HEART }}></span> 我的Claude阿澈</p>
+  </div>`;
+}
+
+/* ---------- put-away habits ---------- */
+function Archived({ store, onClose, toggleTheme, openDetail, unarchive }) {
+  const list = (store.habits || []).filter(h => h.archived);
+  return html`<div className="screen tight">
+    <header className="top" style=${{ marginBottom: '8px' }}>
+      <div className="brand">
+        <button className="logo" aria-label="切換深色或淺色" onClick=${toggleTheme} dangerouslySetInnerHTML=${{ __html: LOGO }}></button>
+        <h1>Slow Growing</h1>
+      </div>
+      <button className="iconbtn press" aria-label="回到設定" onClick=${onClose}><${Icon} name="right" size=${26} width=${1.4} /></button>
+    </header>
+    ${list.length === 0 && html`<div className="empty">還沒有習慣被收起來哦</div>`}
+    <div className="list">
+      ${list.map(h => html`<div key=${h.id} className="card arc" style=${{ '--c': h.color }} onClick=${e => { if (e.target.closest('.arc-add')) return; openDetail(h.id, 'archived'); }}>
+        <button className="namebtn" aria-label=${'打開「' + h.name + '」'}><span className="hname">${h.name}</span><span className="freq">${freqText(freqOf(h))}</span></button>
+        <button className="arc-add press" aria-label=${'把「' + h.name + '」加回來'} onClick=${() => unarchive(h.id)}><${Icon} name="plus" size=${26} width=${1.5} /></button>
+      </div>`)}
+    </div>
   </div>`;
 }
 
@@ -868,6 +925,7 @@ function App() {
   const [lastTap, setLastTap] = useState(null);
   const [form, setForm] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
+  const [archiveId, setArchiveId] = useState(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -944,15 +1002,39 @@ function App() {
     store.setLog(h, today, !done);
     setLastTap(!done ? h.id : null);
   };
-  const openDetail = id => { setDOff(0); setCalAnim(''); go('detail', id, 'in-r'); };
+  // from the month view, open the habit on the month being browsed
+  const openDetail = (id, from) => {
+    setDOff(from === 'home' && view === 'month' ? monthOff : 0); setCalAnim('');
+    setPage({ name: 'detail', id, anim: 'in-r', from: from || 'home' });
+    setOpenId(null); setLastTap(null);
+    try { window.scrollTo(0, 0); } catch (e) {}
+  };
+  const doArchive = () => {
+    const h = find(archiveId); if (!h) { setArchiveId(null); return; }
+    store.saveHabits(habits.map(x => x.id === h.id ? Object.assign({}, x, { archived: ymd(today) }) : x));
+    setArchiveId(null); setOpenId(null);
+    if (page.name !== 'home') go('home', null, 'in-l');
+    showToast('收起「' + h.name + '」了');
+  };
+  const unarchive = id => {
+    const h = find(id); if (!h || !h.archived) return;
+    const t = ymd(today);
+    store.saveHabits(habits.map(x => {
+      if (x.id !== id) return x;
+      const nx = Object.assign({}, x, { pauses: (x.pauses || []).concat(x.archived < t ? [[x.archived, t]] : []) });
+      delete nx.archived;
+      return nx;
+    }));
+    showToast('把「' + h.name + '」加回來了');
+  };
   const openForm = (mode, h, returnTo) => {
     setForm(mode === 'edit'
-      ? Object.assign({ mode: 'edit', id: h.id, name: h.name, color: h.color, returnTo: returnTo || 'home' }, freqOf(h))
+      ? Object.assign({ mode: 'edit', id: h.id, name: h.name, color: h.color, archived: !!h.archived, returnTo: returnTo || 'home', from: page.from }, freqOf(h))
       : { mode: 'add', id: null, name: '', type: 'day', n: 1, color: PALETTE[0].color, returnTo: 'home' });
     go('form', page.id, 'pg-up');
   };
   const closeForm = () => {
-    if (form && form.mode === 'edit' && form.returnTo === 'detail') go('detail', form.id, 'in-l');
+    if (form && form.mode === 'edit' && form.returnTo === 'detail') setPage({ name: 'detail', id: form.id, anim: 'in-l', from: form.from || 'home' });
     else go('home', null, 'in-l');
   };
   const saveForm = () => {
@@ -974,7 +1056,7 @@ function App() {
     const h = find(confirmId); if (!h) { setConfirmId(null); return; }
     store.saveHabits(habits.filter(x => x.id !== h.id));
     setConfirmId(null);
-    if (page.name !== 'home') go('home', null, 'in-l');
+    if (page.name !== 'home') go(form && form.from === 'archived' ? 'archived' : 'home', null, 'in-l');
     showToast('已刪除「' + h.name + '」');
   };
   const toggleTheme = () => {
@@ -989,19 +1071,24 @@ function App() {
   let body;
   const detailH = page.name === 'detail' ? find(page.id) : null;
   if (page.name === 'settings') {
-    body = html`<${Settings} store=${store} onClose=${() => go('home', null, 'in-l')} onBackup=${doBackup} onPickRestore=${pickRestore} toggleTheme=${toggleTheme} />`;
+    body = html`<${Settings} store=${store} onClose=${() => go('home', null, page.from === 'archived' ? 'in-l' : 'in-l')} onBackup=${doBackup} onPickRestore=${pickRestore} toggleTheme=${toggleTheme}
+      onArchived=${() => go('archived', null, 'in-r')} />`;
+  } else if (page.name === 'archived') {
+    body = html`<${Archived} store=${store} onClose=${() => go('settings', null, 'in-l')} toggleTheme=${toggleTheme} openDetail=${openDetail} unarchive=${unarchive} />`;
   } else if (page.name === 'form' && form) {
-    body = html`<${Form} form=${form} setForm=${setForm} onClose=${closeForm} onSave=${saveForm} onDelete=${() => setConfirmId(form.id)} />`;
+    body = html`<${Form} form=${form} setForm=${setForm} onClose=${closeForm} onSave=${saveForm} onDelete=${() => setConfirmId(form.id)}
+      onArchive=${() => setArchiveId(form.id)} onUnarchive=${() => { unarchive(form.id); setForm(Object.assign({}, form, { archived: false })); }} />`;
   } else if (detailH) {
     body = html`<${Detail} h=${detailH} store=${store} today=${today} dOff=${dOff} shiftD=${shiftD} jumpD=${jumpD} calAnim=${calAnim}
-      goHome=${() => go('home', null, 'in-l')} openForm=${openForm} />`;
+      goHome=${() => page.from === 'archived' ? go('archived', null, 'in-l') : go('home', null, 'in-l')} openForm=${openForm} />`;
   } else {
     body = html`<${Home} store=${store} today=${today} view=${view} setView=${setView} listAnim=${listAnim}
       monthOff=${monthOff} shiftMonth=${shiftMonth} openId=${openId} setOpenId=${setOpenId} lastTap=${lastTap}
-      toggleToday=${toggleToday} openDetail=${openDetail} openForm=${openForm} askDelete=${id => { setOpenId(null); setConfirmId(id); }}
+      toggleToday=${toggleToday} openDetail=${openDetail} openForm=${openForm} askDelete=${id => { setOpenId(null); setConfirmId(id); }} askArchive=${id => setArchiveId(id)}
       toggleTheme=${toggleTheme} openSettings=${() => go('settings', null, 'in-r')} jumpMonth=${jumpMonth} />`;
   }
   const confirmH = confirmId ? find(confirmId) : null;
+  const archiveH = archiveId ? find(archiveId) : null;
 
   return html`<${React.Fragment}>
     <div key=${page.name + (page.id || '')} className=${page.anim}>${body}</div>
@@ -1014,6 +1101,16 @@ function App() {
         <div className="dlg-btns">
           <button className="pill press" style=${{ width: 'auto', height: '48px' }} onClick=${() => setConfirmId(null)}>取消</button>
           <button className="pill danger press" style=${{ width: 'auto', height: '48px' }} onClick=${doDelete}>刪除</button>
+        </div>
+      </div>
+    </div>`}
+    ${archiveH && html`<div className="overlay fade-in" onClick=${e => { if (e.target === e.currentTarget) setArchiveId(null); }}>
+      <div className="dialog pop-in" role="dialog" aria-modal="true" aria-labelledby="ar-t">
+        <div id="ar-t" className="dlg-title">要把「${archiveH.name}」收起來嗎？</div>
+        <div className="dlg-text">可以在設定頁那裡隨時加回來哦！</div>
+        <div className="dlg-btns">
+          <button className="pill press" onClick=${() => setArchiveId(null)}>取消</button>
+          <button className="pill primary press" onClick=${doArchive}>收起來</button>
         </div>
       </div>
     </div>`}
