@@ -23,28 +23,28 @@
 :root{
   --bg:#eeeeeb; --surface:#ffffff; --ink:#323232; --muted:#75746e; --ring:#adaca5; --track:#eeeeeb;
   --brand:#5f94c4; --on-brand:#ffffff; --danger:#c9505b; --disabled:#bdbcb6; --scrim:rgba(50,50,50,.35);
-  --fill-op:1; --tick:#323232; --ring-fill:#323232;
+  --fill-op:1; --pend-mix:100%; --tick:#323232; --ring-fill:#323232;
   --f-ui:'Montserrat','PingFang TC','Noto Sans TC',system-ui,sans-serif;
   --f-num:'Poppins','Montserrat',system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#323232; --surface:#424242; --ink:#eeeeeb; --muted:#b3b2ab; --ring:#e3e2dc; --track:#363636;
-    --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; --ring-fill:#e3e2dc; color-scheme:dark;
+    --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; --pend-mix:25%; --ring-fill:#e3e2dc; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#323232; --surface:#424242; --ink:#eeeeeb; --muted:#b3b2ab; --ring:#e3e2dc; --track:#363636;
-  --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; --ring-fill:#e3e2dc; color-scheme:dark;
+  --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; --pend-mix:25%; --ring-fill:#e3e2dc; color-scheme:dark;
 }
 /* the logo switch inside the app wins over the system setting */
 :root[data-app="light"]{
   --bg:#eeeeeb; --surface:#ffffff; --ink:#323232; --muted:#75746e; --ring:#adaca5; --track:#eeeeeb;
-  --danger:#c9505b; --disabled:#bdbcb6; --scrim:rgba(50,50,50,.35); --fill-op:1; --ring-fill:#323232; color-scheme:light;
+  --danger:#c9505b; --disabled:#bdbcb6; --scrim:rgba(50,50,50,.35); --fill-op:1; --pend-mix:100%; --ring-fill:#323232; color-scheme:light;
 }
 :root[data-app="dark"]{
   --bg:#323232; --surface:#424242; --ink:#eeeeeb; --muted:#b3b2ab; --ring:#e3e2dc; --track:#363636;
-  --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; --ring-fill:#e3e2dc; color-scheme:dark;
+  --danger:#ec8a93; --disabled:#6b6b67; --scrim:rgba(0,0,0,.5); --fill-op:.45; --pend-mix:25%; --ring-fill:#e3e2dc; color-scheme:dark;
 }
 
 html,body{min-height:100%;margin:0}
@@ -102,7 +102,7 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 .card.main .namebtn{flex:1;height:70px}
 .card.week .namebtn{width:82px;flex-shrink:0;align-self:stretch}
 .card.month .namebtn{flex:1;justify-content:space-between;gap:12px}
-.hname{font-size:14px;font-weight:600;letter-spacing:.06em;line-height:1.35}
+.hname{font-size:14px;font-weight:600;letter-spacing:.06em;line-height:1.35;overflow-wrap:anywhere}
 .freq{font-size:9px;font-weight:500;letter-spacing:.1em}
 .pct{font-family:var(--f-num);font-size:24px;font-weight:400;letter-spacing:.02em;line-height:1;font-variant-numeric:tabular-nums}
 .fill{position:absolute;left:0;top:0;bottom:0;opacity:var(--fill-op);border-top-right-radius:22px 50%;border-bottom-right-radius:22px 50%;
@@ -181,6 +181,7 @@ h2{margin:0;font-size:17px;font-weight:600;letter-spacing:.1em;text-align:center
 /* form */
 .field{padding:6px 20px}
 .field input{width:100%;height:52px;box-sizing:border-box;border:none;outline:none;background:transparent;padding:0;font-family:var(--f-ui);font-size:16px;font-weight:500;letter-spacing:.06em;color:var(--ink)}
+.field input:-webkit-autofill,.field input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 100px var(--surface) inset;-webkit-text-fill-color:var(--ink);transition:background-color 9999s}
 .field input::placeholder{color:var(--muted);opacity:.8;font-weight:500}
 .group{padding:18px 20px;display:flex;flex-direction:column;gap:14px}
 .g-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
@@ -406,10 +407,11 @@ function nextDue(h, logs, today) {
   const next = new Date(last.getFullYear(), last.getMonth(), last.getDate() + f.n);
   return Math.round((next - today) / 86400000);
 }
-function cellLook(color, v) {
+function cellLook(color, v, isToday) {
   if (v === true) return { background: color, borderColor: color };
   if (v === false) return { background: color + '40', borderColor: 'transparent' };
-  return { background: 'transparent', borderColor: color };
+  // today keeps a full-colour outline so it stays findable; later days soften in dark mode
+  return { background: 'transparent', borderColor: isToday ? color : 'color-mix(in srgb, ' + color + ' var(--pend-mix), transparent)' };
 }
 
 /* ---------- store: everything lives on this phone ---------- */
@@ -641,17 +643,17 @@ function Home(p) {
       ${wasDrag => html`
         ${nameBtn(r, wasDrag, html`<span className="hname">${h.name}</span><span className="freq">${freqText(freqOf(h))}</span>`)}
         <div className="wk" aria-label="本週">
-          ${weekDays.map((d, i) => html`<div key=${'l' + i} className="wk-l" style=${{ fontWeight: sameDay(d, today) ? 700 : 400 }}>${DOW[i]}</div>`)}
-          ${weekDays.map((d, i) => html`<div key=${'c' + i} className="cell" style=${cellLook(h.color, statusOf(h, d, store.logs, today))}></div>`)}
+          ${weekDays.map((d, i) => html`<div key=${'l' + i} className="wk-l" style=${{ fontWeight: sameDay(d, today) ? 600 : 400 }}>${DOW[i]}</div>`)}
+          ${weekDays.map((d, i) => html`<div key=${'c' + i} className="cell" style=${cellLook(h.color, statusOf(h, d, store.logs, today), sameDay(d, today))}></div>`)}
         </div>
         ${check(r)}`}
     </${SwipeCard}>`;
     // 7×5: days land by weekday; a 36th+ slot wraps into the empty start of the first row
     const cells = Array.from({ length: 35 }, () => ({ blank: true }));
-    for (let dd = 1; dd <= r.shown.dim; dd++) { let pos = r.shown.lead + dd - 1; if (pos >= 35) pos -= 35; cells[pos] = { v: r.shown.stats[dd] }; }
+    for (let dd = 1; dd <= r.shown.dim; dd++) { let pos = r.shown.lead + dd - 1; if (pos >= 35) pos -= 35; cells[pos] = { v: r.shown.stats[dd], t: r.shown.y === today.getFullYear() && r.shown.m === today.getMonth() && dd === today.getDate() }; }
     return html`<div key=${h.id} className="card month" onClick=${tapCard(r)}>
       ${nameBtn(r, null, html`<span style=${{ display: 'flex', flexDirection: 'column', gap: '3px' }}><span className="hname">${h.name}</span><span className="freq">${freqText(freqOf(h))}</span></span><span className="pct">${pctStr(r.shown.p)}</span>`)}
-      <div className="mg">${cells.map((c, i) => html`<div key=${i} className="cell" style=${c.blank ? {} : cellLook(h.color, c.v)}></div>`)}</div>
+      <div className="mg">${cells.map((c, i) => html`<div key=${i} className="cell" style=${c.blank ? {} : cellLook(h.color, c.v, c.t)}></div>`)}</div>
       ${check(r, true)}
     </div>`;
   };
@@ -776,7 +778,7 @@ function Form({ form, setForm, onClose, onSave, onDelete }) {
       <button className="round brandbtn press" aria-label="儲存" disabled=${!trimmed} style=${{ opacity: trimmed ? 1 : 0.4, transition: 'opacity .3s ease' }} onClick=${onSave}><${Icon} name="save" width=${2.2} /></button>
     </header>
     <div className="panel field">
-      <input id="habit-name" type="text" aria-label="習慣名稱" placeholder="想養成什麼習慣？" autocomplete="off" value=${name}
+      <input id="sg-habit" name="sg-habit" type="text" aria-label="習慣名稱" placeholder="想養成什麼習慣？" autoComplete="off" autoCorrect="off" spellCheck=${false} enterKeyHint="done" value=${name}
         onChange=${e => patch({ name: String(e.target.value).slice(0, 20) })}
         onKeyDown=${e => { if (e.key === 'Enter' && trimmed) onSave(); }} />
     </div>
@@ -803,7 +805,7 @@ function Form({ form, setForm, onClose, onSave, onDelete }) {
           aria-pressed=${form.color === p.color ? 'true' : 'false'} onClick=${() => patch({ color: p.color })}><span style=${{ background: p.color }}></span></button>`)}
         <label className=${'sw' + (inPalette ? '' : ' on')}>
           <span style=${{ background: inPalette ? 'conic-gradient(#ffcade, #fce76d, #b8dba6, #96b8ea, #cdc1ee, #ffcade)' : form.color }}></span>
-          <input id="habit-color" type="color" aria-label="自訂顏色" value=${form.color} onChange=${e => patch({ color: String(e.target.value).toLowerCase() })} />
+          <input id="habit-color" type="color" tabIndex=${-1} aria-label="自訂顏色" value=${form.color} onChange=${e => patch({ color: String(e.target.value).toLowerCase() })} />
         </label>
       </div>
     </div>
