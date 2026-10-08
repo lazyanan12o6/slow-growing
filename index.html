@@ -101,7 +101,8 @@ h2{margin:0;font-size:16px;font-weight:600;letter-spacing:.1em;text-align:center
 .row{position:relative;height:70px;box-sizing:border-box;padding:0 10px 0 20px;display:flex;align-items:center;gap:8px}
 .namebtn{border:none;background:transparent;padding:0;text-align:left;display:flex;flex-direction:column;justify-content:center;gap:3px;min-width:0}
 .card.main .namebtn{flex:1;height:70px}
-.card.week .namebtn{width:82px;flex-shrink:0;align-self:stretch}
+/* week: the seven days keep their 375 spacing on wider screens; extra room goes to the name */
+.card.week .namebtn{flex:1;min-width:82px;align-self:stretch}
 .card.month .namebtn{flex:1;justify-content:space-between;gap:12px}
 .hname{font-size:14px;font-weight:600;letter-spacing:.1em;line-height:1.35;overflow-wrap:anywhere}
 .freq{font-size:9px;font-weight:500;letter-spacing:.1em}
@@ -112,7 +113,7 @@ h2{margin:0;font-size:16px;font-weight:600;letter-spacing:.1em;text-align:center
 @keyframes grow{from{width:0}}
 @keyframes wobble{0%,100%{border-top-right-radius:22px 50%;border-bottom-right-radius:22px 50%}35%{border-top-right-radius:27px 44%;border-bottom-right-radius:18px 56%}70%{border-top-right-radius:18px 55%;border-bottom-right-radius:26px 45%}}
 
-.wk{flex:1;min-width:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));column-gap:4px;row-gap:7px;justify-items:center}
+.wk{flex:0 1 155px;min-width:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));column-gap:4px;row-gap:7px;justify-items:center}
 .wk-l{text-align:center;font-size:9px}
 .mg{display:grid;grid-template-columns:repeat(7,16px);gap:9px;flex-shrink:0;padding-top:6px}
 @media (max-width:389px){.mg{gap:7px}}
@@ -470,7 +471,7 @@ function cellLook(color, v, isToday) {
 /* ---------- store: everything lives on this phone ---------- */
 const DATA_KEY = 'slow-growing:data';
 // semantic version: big rework . new feature . small fix
-const VERSION = { label: '3.2.3', date: '2026.10.06' };
+const VERSION = { label: '3.2.4', date: '2026.10.08' };
 function seedData() {
   return { v: 1, theme: null, lastBackup: null, logs: {}, habits: [] };
 }

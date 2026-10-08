@@ -1,6 +1,6 @@
 // Slow Growing — keeps the app working offline.
 // When the app is updated, change VERSION so phones pick up the new files.
-const VERSION = 'slow-growing-v24';
+const VERSION = 'slow-growing-v25';
 const FILES = [
   './', './index.html', './manifest.webmanifest',
   './vendor/react.production.min.js', './vendor/react-dom.production.min.js', './vendor/htm.umd.js',
