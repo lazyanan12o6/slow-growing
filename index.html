@@ -323,35 +323,44 @@ const freqOf = h => {
   if (h.unit === 'week') return h.n === 1 ? { type: 'week', n: 1 } : { type: 'month', n: Math.max(1, Math.round(4 / h.n)) };
   return { type: 'day', n: h.n || 1 };
 };
-// the setting in effect for a month: hist holds { from: 'YYYY-MM', type, n } entries, oldest first;
-// months before the first entry use the first one; no hist = the current setting for every month
+// each month uses the setting it was recorded under:
+// monthFreq: { 'YYYY-MM': { type, n } } keeps the setting of past months that have check-ins and differ from now;
+// every other month (empty past months, this month, the future) uses the current setting
+const sameFreq = (a, b) => a.type === b.type && a.n === b.n;
 const freqAt = (h, y, m) => {
-  const hist = h.hist;
-  if (!hist || !hist.length) return freqOf(h);
-  const ym = ymKey(y, m);
-  let e = hist[0];
-  hist.forEach(x => { if (x.from <= ym) e = x; });
-  return { type: e.type, n: e.n };
+  const f = h.monthFreq && h.monthFreq[ymKey(y, m)];
+  return f ? { type: f.type, n: f.n } : freqOf(h);
 };
-// record a frequency change: it applies to the whole of this month and every month after
-// does this habit have any check-in at all (any month)?
-const hasLogs = (logs, id) => Object.keys(logs || {}).some(ym => Object.keys(logs[ym] || {}).some(k => k.split('|')[0] === id));
-// with no check-ins yet the habit hasn't started, so a change just corrects the original setting: no history
-function withFreq(h, type, n, ym, started) {
-  if (!started) {
-    const nh = Object.assign({}, h, { type, n });
-    delete nh.unit; delete nh.hist;
-    return nh;
-  }
-  const old = freqOf(h);
-  let hist = (h.hist && h.hist.length ? h.hist : [{ from: '0000-01', type: old.type, n: old.n }])
-    .filter(x => x.from < ym);
-  const prev = hist[hist.length - 1];
-  if (!prev || prev.type !== type || prev.n !== n) hist = hist.concat([{ from: ym, type, n }]);
+// months in which this habit has at least one check-in
+const loggedMonths = (logs, id) => Object.keys(logs || {}).filter(ym => Object.keys(logs[ym] || {}).some(k => k.split('|')[0] === id));
+// change the frequency: past months with check-ins keep the setting they had; this month, the future and empty months follow the new one
+function withFreq(h, type, n, ym, logs) {
+  const next = { type, n }, mf = {};
+  loggedMonths(logs, h.id).forEach(k => {
+    if (k >= ym) return;
+    const f = freqAt(h, +k.slice(0, 4), +k.slice(5, 7) - 1);
+    if (!sameFreq(f, next)) mf[k] = { type: f.type, n: f.n };
+  });
   const nh = Object.assign({}, h, { type, n });
-  delete nh.unit;
-  if (hist.length > 1) nh.hist = hist; else delete nh.hist;
+  delete nh.unit; delete nh.hist;
+  if (Object.keys(mf).length) nh.monthFreq = mf; else delete nh.monthFreq;
   return nh;
+}
+// 3.2.x stored ranges (hist: [{ from: 'YYYY-MM', type, n }]); turn them into monthFreq once
+function migrateFreq(habits, logs) {
+  return (habits || []).map(h => {
+    if (!h.hist || !h.hist.length) return h;
+    const cur = freqOf(h), mf = Object.assign({}, h.monthFreq || {});
+    loggedMonths(logs, h.id).forEach(k => {
+      let e = h.hist[0];
+      h.hist.forEach(x => { if (x.from <= k) e = x; });
+      if (!sameFreq(e, cur)) mf[k] = { type: e.type, n: e.n };
+    });
+    const nh = Object.assign({}, h);
+    delete nh.hist;
+    if (Object.keys(mf).length) nh.monthFreq = mf; else delete nh.monthFreq;
+    return nh;
+  });
 }
 const freqText = f => f.type === 'week' ? f.n + 'x a week' : f.type === 'month' ? f.n + 'x a month' : 'every ' + f.n + (f.n === 1 ? ' day' : ' days');
 const pctStr = p => Math.round(p * 100) + '%';
@@ -473,13 +482,13 @@ function cellLook(color, v, isToday) {
 /* ---------- store: everything lives on this phone ---------- */
 const DATA_KEY = 'slow-growing:data';
 // semantic version: big rework . new feature . small fix
-const VERSION = { label: '3.2.5', date: '2026.10.10' };
+const VERSION = { label: '3.3.0', date: '2026.10.10' };
 function seedData() {
   return { v: 1, theme: null, lastBackup: null, logs: {}, habits: [] };
 }
 function useStore() {
   const [data, setData] = useState(() => {
-    try { const raw = localStorage.getItem(DATA_KEY); if (raw) { const d = JSON.parse(raw); if (d && d.v === 1) return d; } } catch (e) {}
+    try { const raw = localStorage.getItem(DATA_KEY); if (raw) { const d = JSON.parse(raw); if (d && d.v === 1) return Object.assign({}, d, { habits: migrateFreq(d.habits, d.logs) }); } } catch (e) {}
     return seedData();
   });
   useEffect(() => { try { localStorage.setItem(DATA_KEY, JSON.stringify(data)); } catch (e) {} }, [data]);
@@ -497,7 +506,7 @@ function useStore() {
     setTheme: t => setData(d => Object.assign({}, d, { theme: t })),
     markBackup: () => setData(d => Object.assign({}, d, { lastBackup: new Date().toISOString() })),
     snapshot: () => ({ app: 'slow-growing', format: 1, exportedAt: new Date().toISOString(), habits: data.habits, logs: data.logs, theme: data.theme }),
-    restore: b => setData(d => ({ v: 1, theme: b.theme == null ? d.theme : b.theme, lastBackup: d.lastBackup, habits: b.habits, logs: b.logs || {} }))
+    restore: b => setData(d => ({ v: 1, theme: b.theme == null ? d.theme : b.theme, lastBackup: d.lastBackup, habits: migrateFreq(b.habits, b.logs || {}), logs: b.logs || {} }))
   };
 }
 function parseBackup(text) {
@@ -1095,7 +1104,7 @@ function App() {
     if (form.mode === 'edit') {
       store.saveHabits(habits.map(h => {
         if (h.id !== form.id) return h;
-        return Object.assign(withFreq(h, form.type, form.n, ymd(today).slice(0, 7), hasLogs(store.logs, h.id)), { name, color: form.color });
+        return Object.assign(withFreq(h, form.type, form.n, ymd(today).slice(0, 7), store.logs), { name, color: form.color });
       }));
     } else {
       store.saveHabits(habits.concat([{ id: 'h' + Date.now().toString(36), name, type: form.type, n: form.n, color: form.color, created: ymd(today) }]));
