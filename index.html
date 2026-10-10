@@ -334,9 +334,11 @@ const freqAt = (h, y, m) => {
   return { type: e.type, n: e.n };
 };
 // record a frequency change: it applies to the whole of this month and every month after
-// a change made in the month the habit was created just corrects the original setting: no history
-function withFreq(h, type, n, ym) {
-  if (h.created && ym <= h.created.slice(0, 7)) {
+// does this habit have any check-in at all (any month)?
+const hasLogs = (logs, id) => Object.keys(logs || {}).some(ym => Object.keys(logs[ym] || {}).some(k => k.split('|')[0] === id));
+// with no check-ins yet the habit hasn't started, so a change just corrects the original setting: no history
+function withFreq(h, type, n, ym, started) {
+  if (!started) {
     const nh = Object.assign({}, h, { type, n });
     delete nh.unit; delete nh.hist;
     return nh;
@@ -471,7 +473,7 @@ function cellLook(color, v, isToday) {
 /* ---------- store: everything lives on this phone ---------- */
 const DATA_KEY = 'slow-growing:data';
 // semantic version: big rework . new feature . small fix
-const VERSION = { label: '3.2.4', date: '2026.10.08' };
+const VERSION = { label: '3.2.5', date: '2026.10.10' };
 function seedData() {
   return { v: 1, theme: null, lastBackup: null, logs: {}, habits: [] };
 }
@@ -1093,7 +1095,7 @@ function App() {
     if (form.mode === 'edit') {
       store.saveHabits(habits.map(h => {
         if (h.id !== form.id) return h;
-        return Object.assign(withFreq(h, form.type, form.n, ymd(today).slice(0, 7)), { name, color: form.color });
+        return Object.assign(withFreq(h, form.type, form.n, ymd(today).slice(0, 7), hasLogs(store.logs, h.id)), { name, color: form.color });
       }));
     } else {
       store.saveHabits(habits.concat([{ id: 'h' + Date.now().toString(36), name, type: form.type, n: form.n, color: form.color, created: ymd(today) }]));
